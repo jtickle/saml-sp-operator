@@ -117,3 +117,7 @@ None for this plan's execution — the GHCR public-visibility checkpoint (Task 1
 ---
 *Phase: 01-shared-render-aggregation-package*
 *Completed: 2026-07-11*
+
+## Self-Check: PASSED
+
+Both created/modified files confirmed present on disk (`internal/render/shibdload_test.go`, `.planning/phases/01-shared-render-aggregation-package/01-07-SUMMARY.md`); both commits (`83290a9`, `f9aafc4`) confirmed present in `git log --oneline --all`. `go build ./...`, `go vet ./...`, `go test ./...` (hermetic, no Docker) all exit clean; `go test -tags shibdload ./internal/render/... -run TestShibdLoad -v` (Docker available) passed twice in a row (~4.5s each), with shibd reaching `"Shibboleth initialization complete."` and no `FATAL` in the container logs.
