@@ -27,7 +27,7 @@ scaffold, both CRDs, empty reconcilers, envtest green) — no phase re-scaffolds
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Shared Render & Aggregation Package** - Pure Go config-rendering + RequestMap-collision logic, unit-tested against spike fixtures, zero k8s dependency
+- [x] **Phase 1: Shared Render & Aggregation Package** - Pure Go config-rendering + RequestMap-collision logic, unit-tested against spike fixtures, zero k8s dependency (completed 2026-07-11)
 - [ ] **Phase 2: SPInstance Controller — Static Path & Production Foundations** - A single SPInstance becomes a real, hardened, running SP Deployment (rollout, readiness, sessions, RBAC, NetworkPolicy, leader election) with no AppIntegration awareness yet
 - [ ] **Phase 3: AppIntegration Controller — Resolution Only** - An AppIntegration resolves its HTTPRoute and validates SPInstance consent, with no side effects on the SP
 - [ ] **Phase 4: Cross-Namespace Aggregation (SPInstance Side)** - The SPInstance controller aggregates real, multi-app AppIntegrations across namespaces — the first point two apps can collide
@@ -53,18 +53,18 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Wave 1**
 
 - [x] 01-01-PLAN.md — Types, self-URL derivation, collision resolution (the shared `Resolve` seam) [RENDER-02, RENDER-06] (wave 1)
-- [ ] 01-02-PLAN.md — XML self-closing/prolog formatting + config hash primitives [RENDER-09] (wave 1)
+- [x] 01-02-PLAN.md — XML self-closing/prolog formatting + config hash primitives [RENDER-09] (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-03-PLAN.md — shibboleth2.xml renderer + RequestMap aggregation + explicit scheme/port [RENDER-01, RENDER-04, RENDER-05] (wave 2)
-- [ ] 01-04-PLAN.md — attribute-map.xml renderer [RENDER-03] (wave 2)
-- [ ] 01-05-PLAN.md — nginx.conf renderer + edge header clear-list [RENDER-07, RENDER-08] (wave 2)
+- [x] 01-03-PLAN.md — shibboleth2.xml renderer + RequestMap aggregation + explicit scheme/port [RENDER-01, RENDER-04, RENDER-05] (wave 2)
+- [x] 01-04-PLAN.md — attribute-map.xml renderer [RENDER-03] (wave 2)
+- [x] 01-05-PLAN.md — nginx.conf renderer + edge header clear-list [RENDER-07, RENDER-08] (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-06-PLAN.md — injection safety + pipeline determinism/hash stability [RENDER-10, RENDER-09] (wave 3)
-- [ ] 01-07-PLAN.md — gated real-shibd container load test + GHCR public-visibility checkpoint [RENDER-01] (wave 3)
+- [x] 01-06-PLAN.md — injection safety + pipeline determinism/hash stability [RENDER-10, RENDER-09] (wave 3)
+- [x] 01-07-PLAN.md — gated real-shibd container load test + GHCR public-visibility checkpoint [RENDER-01] (wave 3)
 
 ### Phase 2: SPInstance Controller — Static Path & Production Foundations
 
@@ -148,7 +148,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Shared Render & Aggregation Package | 1/7 | In Progress|  |
+| 1. Shared Render & Aggregation Package | 7/7 | Complete    | 2026-07-11 |
 | 2. SPInstance Controller — Static Path & Production Foundations | 0/TBD | Not started | - |
 | 3. AppIntegration Controller — Resolution Only | 0/TBD | Not started | - |
 | 4. Cross-Namespace Aggregation (SPInstance Side) | 0/TBD | Not started | - |

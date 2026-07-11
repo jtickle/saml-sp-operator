@@ -9,16 +9,16 @@
 
 ### Render & Aggregation (pure `internal/render` package — no k8s deps, unit-tested against spike fixtures)
 
-- [ ] **RENDER-01**: Render `shibboleth2.xml` (ApplicationDefaults, `Sessions`, `MetadataProvider`, credentials) from an `SPInstance` spec, via `encoding/xml` struct marshaling (not string templating)
+- [x] **RENDER-01**: Render `shibboleth2.xml` (ApplicationDefaults, `Sessions`, `MetadataProvider`, credentials) from an `SPInstance` spec, via `encoding/xml` struct marshaling (not string templating)
 - [x] **RENDER-02**: Derive the SP self-URL config — `SHIBSP_SERVER_{NAME,SCHEME,PORT}` env + absolute `handlerURL` — from each app's external URL (spike fix M)
-- [ ] **RENDER-03**: Render `attribute-map.xml` from `AppIntegration.attributes` (SAML attribute id → exported `Variable-<id>` header)
-- [ ] **RENDER-04**: Aggregate all bound `AppIntegration`s into one ordered RequestMap (host/path → applicationId); most-specific path first; exact `<Host>` before `<HostRegex>`
-- [ ] **RENDER-05**: Every RequestMap `<Host>` carries explicit `scheme`+`port` (spike fix N — the gate fails **open** otherwise)
+- [x] **RENDER-03**: Render `attribute-map.xml` from `AppIntegration.attributes` (SAML attribute id → exported `Variable-<id>` header)
+- [x] **RENDER-04**: Aggregate all bound `AppIntegration`s into one ordered RequestMap (host/path → applicationId); most-specific path first; exact `<Host>` before `<HostRegex>`
+- [x] **RENDER-05**: Every RequestMap `<Host>` carries explicit `scheme`+`port` (spike fix N — the gate fails **open** otherwise)
 - [x] **RENDER-06**: RequestMap collision on `(hostname, path)` → deterministic winner by sort key `(priority desc, createdAt asc, UID asc)` — explicit `AppIntegration.spec.priority` (int32, higher wins, default 0) is consulted first, then oldest `createdAt`, then UID as the final tiebreak; loser excluded from render and flagged — never last-write-wins, and deterministic across map iterations
-- [ ] **RENDER-07**: Render `nginx.conf` (X-Forwarded-* → FastCGI params, `/authcheck` + `/Shibboleth.sso` locations) via `text/template`
-- [ ] **RENDER-08**: Generate the edge header-hygiene clear-list per attachment model (enumerate-clear for Traefik; `Variable-*` glob for the nginx model)
-- [ ] **RENDER-09**: Compute a `sha256` config hash over the rendered bytes for rollout gating
-- [ ] **RENDER-10**: Rendered config is injection-safe against hostile CRD string fields (XML-escaped; no `--` in comments — spike fix K)
+- [x] **RENDER-07**: Render `nginx.conf` (X-Forwarded-* → FastCGI params, `/authcheck` + `/Shibboleth.sso` locations) via `text/template`
+- [x] **RENDER-08**: Generate the edge header-hygiene clear-list per attachment model (enumerate-clear for Traefik; `Variable-*` glob for the nginx model)
+- [x] **RENDER-09**: Compute a `sha256` config hash over the rendered bytes for rollout gating
+- [x] **RENDER-10**: Rendered config is injection-safe against hostile CRD string fields (XML-escaped; no `--` in comments — spike fix K)
 
 ### SPInstance Controller (auth namespace)
 
@@ -84,16 +84,16 @@ Deferred — tracked, not in the current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RENDER-01 | Phase 1 | Pending |
+| RENDER-01 | Phase 1 | Complete |
 | RENDER-02 | Phase 1 | Complete |
-| RENDER-03 | Phase 1 | Pending |
-| RENDER-04 | Phase 1 | Pending |
-| RENDER-05 | Phase 1 | Pending |
+| RENDER-03 | Phase 1 | Complete |
+| RENDER-04 | Phase 1 | Complete |
+| RENDER-05 | Phase 1 | Complete |
 | RENDER-06 | Phase 1 | Complete |
-| RENDER-07 | Phase 1 | Pending |
-| RENDER-08 | Phase 1 | Pending |
-| RENDER-09 | Phase 1 | Pending |
-| RENDER-10 | Phase 1 | Pending |
+| RENDER-07 | Phase 1 | Complete |
+| RENDER-08 | Phase 1 | Complete |
+| RENDER-09 | Phase 1 | Complete |
+| RENDER-10 | Phase 1 | Complete |
 | SPI-01 | Phase 2 | Pending |
 | SPI-02 | Phase 2 | Pending |
 | SPI-03 | Phase 2 | Pending |
