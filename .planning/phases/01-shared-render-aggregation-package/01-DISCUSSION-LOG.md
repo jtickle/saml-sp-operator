@@ -38,7 +38,7 @@
 
 ### Package API shape (rationale corrected, decision unchanged)
 - **Original assumption:** plain-Go struct because "no k8s dep" requirement + data availability.
-- **User steer:** questioned why "no k8s dep" was a requirement at all ("this is a kubernetes solution"). Surfaced the real reason — the render core is the shared seam between the k8s operator and a planned standalone single-container tool (per the Raft `docker/shib-sp` demo that already vendors this repo's SP image). Decision unchanged; rationale upgraded and recorded in PROJECT.md.
+- **User steer:** questioned why "no k8s dep" was a requirement at all ("this is a kubernetes solution"). Surfaced the real reason — the render core is the shared seam between the k8s operator and a planned standalone single-container tool (per a separate product's demo container that already vendors this repo's SP image). Decision unchanged; rationale upgraded and recorded in PROJECT.md.
 
 ### Collision winner policy — priority field added
 - **Original assumption:** implicit oldest-wins (`createdAt`, UID tiebreak), no priority field for v1.

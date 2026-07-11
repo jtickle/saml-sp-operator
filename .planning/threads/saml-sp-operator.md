@@ -203,7 +203,7 @@ Original bench fixes A–E are in commit `e596bba`. The in-cluster fixes:
   `ExternalAuth` as it matures); the SP image is unchanged across all of them.
   **(2)** The **302-relay is the load-bearing portability unknown** — Traefik
   relays it (interactive SAML works), but GEP-1494 HTTP mode is spec-silent on it;
-  must spike per dataplane, else fall back to the nginx-module edge (raft's model).
+  must spike per dataplane, else fall back to the nginx-module edge (that product's model).
   **(3)** Standards use **`backendRef` → endpoints**, which structurally avoids the
   fix-O ClusterIP-egress problem — confirming endpoint-based access is the norm,
   and Shibboleth-for-SAML is correct (lighter oauth2-proxy/Keycloak alternatives
@@ -318,14 +318,14 @@ reproduced against live Traefik with the spike-level mitigation decided (DESIGN 
    history diverge. Then `gsd/operator-scaffold` PRs into `main`.
    **Next on the operator:** ✅ DONE (2026-07-10) — project GSD-initialized via
    `/gsd-new-project`. `.planning/` now holds PROJECT.md, config.json (adapted from
-   raft-management), 4-agent research + SUMMARY.md, REQUIREMENTS.md (31 v1 reqs), and
+   a separate product), 4-agent research + SUMMARY.md, REQUIREMENTS.md (31 v1 reqs), and
    a **6-phase ROADMAP.md** (commit `065ed7a`): (1) pure render/aggregation package →
    (2) SPInstance static path + production foundations → (3) AppIntegration resolution-
    only → (4) cross-ns aggregation → (5) Middleware+Conflict+finalizer (end-to-end) →
    (6) hardening/observability closeout. Adopts the architecture research's dependency-
    ordered sequence; every phase verifiable against the live spike image. **Ready for
    `/gsd-plan-phase 1`.** Deferred spike cleanups (redundant fastcgi_params; real SP
-   readiness probe) folded into RENDER-*/SPI-03. Config note: took raft's
+   readiness probe) folded into RENDER-*/SPI-03. Config note: took that product's
    `branching_strategy: none` + `use_worktrees: true` — flag if phase-branches wanted.
 4. **Follow-up spike chapter:** GEP-1494 `ExternalAuth` 302-relay on Cilium/Envoy
    Gateway (DESIGN §9 addendum / §11) — decides gateway-native-everywhere vs the
@@ -357,7 +357,7 @@ reproduced against live Traefik with the spike-level mitigation decided (DESIGN 
   It's the ONLY engine-implementation-dependent part of the identity contract
   (Jeff) — so swapping the engine (SP3→SP4→other) is a header-contract-affecting
   change; SP4 likely drops this. The rename layer is the shock absorber: nginx
-  `auth_request` renames freely (raft's model → stable app-facing names); Traefik
+  `auth_request` renames freely (that product's model → stable app-facing names); Traefik
   ForwardAuth can't rename → app consumes `Variable-*` as-is. Detailed in DESIGN §2
   + §9 addendum.
 - **SECURITY — header hygiene, second nginx-vs-Traefik edge** (spike-verified

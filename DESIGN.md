@@ -355,7 +355,7 @@ concrete decision inputs:
   says "non-200 = failure" and does not specify redirect relay.** So "ext-authz
   everywhere" is unproven for the interactive-login leg and **must be spiked per
   dataplane** (Cilium, Envoy Gateway). If a gateway won't relay the 302, the
-  fallback for that gateway is the nginx-`auth_request`+module edge (the model raft
+  fallback for that gateway is the nginx-`auth_request`+module edge (the model that product
   proved) fronting it. This decides whether the operator can be gateway-native
   everywhere or must ship the nginx-module edge for some dataplanes.
 
@@ -407,13 +407,13 @@ concrete decision inputs:
     than promise a stable cross-engine app-facing naming.
   - **The rename layer, where one exists, is the shock absorber.** nginx
     `auth_request` renames freely (`proxy_set_header <AppName> $upstream_http_variable_<id>`)
-    → the app sees stable names decoupled from the engine (this is how raft's
-    `nginx-raft.conf` pins `Remote-User`/`Affiliation`/`Mail`). Traefik ForwardAuth
+    → the app sees stable names decoupled from the engine (this is how that product's
+    reference nginx config pins `Remote-User`/`Affiliation`/`Mail`). Traefik ForwardAuth
     **cannot rename** (`authResponseHeaders` copies by-name; no value-copying
     middleware in stock Traefik) → the app consumes the engine's names as-is, or a
     plugin/shim is added. So an app with a fixed header contract couples to the
     engine naming under ForwardAuth but not under the nginx-rename model — likely a
-    reason raft chose the latter.
+    reason that product chose the latter.
   - **Everything else stays engine-agnostic** (Jeff, 2026-07-09): no other part of
     the generated config is this implementation-dependent, so this is the one
     boundary to call out explicitly in the engine-adapter interface (§2/§3/§12).

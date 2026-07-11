@@ -223,15 +223,14 @@ current `spike` checkout) — **shape reference only.**
 
 **RESEARCH.md Pitfall 7, confirmed by direct read this session:** this file (and its siblings
 `edge/Dockerfile`, `edge/nginx.validate.conf`) is cross-contaminated with an unrelated Tickle
-Technologies product (a Raft delegated-auth testbed — `raft-server`, `simplesamlphp`, thread
-`saml-92-delegated`), not this project's fixtures. **Do not reuse it verbatim.** Reuse only its
+Technologies product (an unrelated product's delegated-auth testbed — its backend server, `simplesamlphp`, an internal thread), not this project's fixtures. **Do not reuse it verbatim.** Reuse only its
 bind-mount *shape*: `shibboleth2.xml` / `attribute-map.xml` / `attribute-policy.xml` /
 `nginx.conf` / `sp-credentials/` mounted read-only into the SP container — construct the
 equivalent mounts via `testcontainers-go`'s `ContainerRequest.Files`, using this repo's own
 root-level fixtures (`shibboleth2.xml`, `attribute-map.xml`, `nginx.conf`, already read above)
 as the reference shape, and this package's own rendered output as the actual mounted content.
 
-Since this is a **public** repo, do not carry over any Raft-specific naming/thread-id/product
+Since this is a **public** repo, do not carry over any product-specific naming/thread-id/product
 references into the new test file — even though RESEARCH.md assesses `edge/` as not
 credential-bearing, treat the whole file as non-authoritative content, not just non-authoritative
 structure.
