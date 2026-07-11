@@ -1,0 +1,37 @@
+<!--
+  Spike attribute-map: decode the attributes mocksaml (ory/boxyhq) actually
+  releases. Verified against a real signed assertion driven end to end:
+  mocksaml emits exactly four attributes, all with
+  NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified" and plain
+  (non-URI) Names, plus a NameID in emailAddress format:
+
+      Name="id"        -> id="uid"        (sha256 of the email)
+      Name="email"     -> id="email"      (also the NameID value)
+      Name="firstName" -> id="firstName"
+      Name="lastName"  -> id="lastName"
+
+  The STOCK /etc/shibboleth/attribute-map.xml only maps OID/URI-named attributes
+  (urn:oid:..., urn:mace:...), so it dropped all four silently -> the SP extracted
+  nothing -> REMOTE_USER was empty -> the authorizer exported no identity. This
+  file (mounted over the stock one) is the fix.
+
+  How the identity reaches the app: the FastCGI shibauthorizer exports each
+  decoded attribute (and REMOTE_USER) as an HTTP RESPONSE header named
+  "Variable-<id>" (e.g. Variable-email, Variable-REMOTE_USER). Traefik's
+  ForwardAuth then copies the header names listed in the Middleware's
+  authResponseHeaders onto the upstream request. So the id chosen here IS the
+  header suffix the app receives.
+
+  Operator note: this map is generated per-IdP from the attribute contract the
+  IdP advertises. A real federation (InCommon) IdP emits urn:oid:-named,
+  SCOPED attributes (eppn, eduPersonScopedAffiliation) -> those additionally need
+  a non-default attribute-policy.xml (the stock policy's ScopingRules reject
+  '@'-bearing values). mocksaml's flat attributes dodge that; a real IdP will not.
+-->
+<Attributes xmlns="urn:mace:shibboleth:2.0:attribute-map"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <Attribute name="email"     id="email"/>
+    <Attribute name="firstName" id="firstName"/>
+    <Attribute name="lastName"  id="lastName"/>
+    <Attribute name="id"        id="uid"/>
+</Attributes>

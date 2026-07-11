@@ -1,0 +1,24 @@
+# Sample SPInstance modeled on the de-risking spike: a single SP deployment
+# trusting mocksaml (BoxyHQ). Lives in the central auth namespace.
+apiVersion: saml.tickletechnologies.com/v1alpha1
+kind: SPInstance
+metadata:
+  labels:
+    app.kubernetes.io/name: saml-sp-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: spinstance-sample
+  namespace: shib-system
+spec:
+  entityID: https://sp.example.com/shibboleth
+  credentials:
+    name: sp-keypair            # Secret with tls.crt + tls.key in this namespace
+  idp:
+    metadataURL: https://mocksaml.com/api/saml/metadata
+    entityID: https://saml.example.com/entityid
+  # Only app namespaces carrying this label may bind an AppIntegration here.
+  allowedNamespaces:
+    matchLabels:
+      saml.tickletechnologies.com/allow-bind: "true"
+  sessionStore:
+    memcachedServers:
+      - shib-memcached.shib-system.svc.cluster.local:11211

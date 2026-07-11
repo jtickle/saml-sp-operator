@@ -1,0 +1,50 @@
+name: build-authenticator
+
+# Builds the encapsulated Shibboleth SP "authenticator" image and pushes it to
+# GHCR. Pre-release: this runs off the spike branch, not main. The built-in
+# GITHUB_TOKEN has packages:write to this repo's GHCR namespace, so no extra
+# secret is needed -- the SSH key that pushed the branch is the only credential
+# in play.
+on:
+  push:
+    branches: [spike]
+    paths:
+      - spike/Dockerfile
+      - spike/supervisord.conf
+      - .github/workflows/build.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          # -> ghcr.io/jtickle/saml-sp-operator/shib-authenticator
+          images: ghcr.io/${{ github.repository }}/shib-authenticator
+          tags: |
+            type=ref,event=branch
+            type=sha,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: spike
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

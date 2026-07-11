@@ -1,0 +1,28 @@
+# Sample AppIntegration: protect the "whoami" app's HTTPRoute with the spike's
+# four mocksaml attributes. Lives in the app namespace beside the HTTPRoute; its
+# namespace must carry the label the SPInstance's allowedNamespaces selects.
+apiVersion: saml.tickletechnologies.com/v1alpha1
+kind: AppIntegration
+metadata:
+  labels:
+    app.kubernetes.io/name: saml-sp-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: appintegration-sample
+  namespace: whoami
+spec:
+  spInstanceRef:
+    name: spinstance-sample
+    namespace: shib-system
+  targetRef:
+    # group/kind default to gateway.networking.k8s.io / HTTPRoute
+    name: whoami
+  requireSession: true
+  attributes:
+    - name: email
+      header: Variable-email
+    - name: firstName
+      header: Variable-firstName
+    - name: lastName
+      header: Variable-lastName
+    - name: uid
+      header: Variable-uid
