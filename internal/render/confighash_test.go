@@ -23,7 +23,7 @@ func TestConfigHash(t *testing.T) {
 		}
 
 		first := Hash(files)
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			got := Hash(files)
 			if got != first {
 				t.Fatalf("Hash is non-deterministic: call 1 = %q, call %d = %q", first, i+2, got)

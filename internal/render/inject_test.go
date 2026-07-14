@@ -172,10 +172,8 @@ var injectionFields = []injectionField{
 // text/template has no auto-escaping.
 func TestInjectionSafety(t *testing.T) {
 	for _, tok := range hostileTokens {
-		tok := tok
 		t.Run(tok.name, func(t *testing.T) {
 			for _, f := range injectionFields {
-				f := f
 				t.Run(f.name, func(t *testing.T) {
 					cfg := baseInjectionCfg()
 					winners := baseInjectionWinners()

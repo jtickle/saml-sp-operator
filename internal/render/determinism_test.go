@@ -86,7 +86,7 @@ func TestConfigHashStability(t *testing.T) {
 		// exercising many distinct orderings of the same underlying set.
 		rng := rand.New(rand.NewSource(1))
 		const shuffles = 50
-		for i := 0; i < shuffles; i++ {
+		for i := range shuffles {
 			shuffled := slices.Clone(bindings)
 			rng.Shuffle(len(shuffled), func(a, b int) {
 				shuffled[a], shuffled[b] = shuffled[b], shuffled[a]

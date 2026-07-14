@@ -19,13 +19,16 @@ type SelfURL struct {
 	HandlerURL string
 }
 
+// schemeHTTPS is the only external-URL scheme this package accepts (the
+// operator's SP always sits behind a TLS-terminating gateway).
+const schemeHTTPS = "https"
+
 // schemeDefaultPorts holds the standard port for every scheme this package
-// accepts as an external URL. https is the only supported scheme today (the
-// operator's SP always sits behind a TLS-terminating gateway); this table
-// exists so a future scheme addition has one place to extend rather than a
-// scattered literal.
+// accepts as an external URL. https is the only supported scheme today; this
+// table exists so a future scheme addition has one place to extend rather
+// than a scattered literal.
 var schemeDefaultPorts = map[string]int{
-	"https": 443,
+	schemeHTTPS: 443,
 }
 
 // DeriveSelfURL parses an app's external URL into a SelfURL. Port is always
@@ -47,7 +50,7 @@ func DeriveSelfURL(externalURL string) (SelfURL, error) {
 		return SelfURL{}, fmt.Errorf("render: external URL %q does not parse: %w", externalURL, err)
 	}
 
-	if u.Scheme != "https" {
+	if u.Scheme != schemeHTTPS {
 		return SelfURL{}, fmt.Errorf("render: external URL %q has scheme %q, only \"https\" is supported", externalURL, u.Scheme)
 	}
 

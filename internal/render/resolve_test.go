@@ -20,7 +20,7 @@ func TestResolveDeterminism(t *testing.T) {
 			t.Fatalf("Resolve returned unexpected error: %v", err)
 		}
 
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			shuffled := append([]AppBinding(nil), base...)
 			rand.Shuffle(len(shuffled), func(i, j int) {
 				shuffled[i], shuffled[j] = shuffled[j], shuffled[i]

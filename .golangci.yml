@@ -29,6 +29,12 @@ linters:
       logcheck:
         type: "module"
         description: Checks Go logging calls for Kubernetes logging conventions.
+    goconst:
+      # Don't flag encoding/xml attribute string values (Type="XML",
+      # Validate="true", ReloadChanges="false") in the renderers — naming
+      # these constants reads worse than the literal. goconst still catches
+      # genuine magic strings elsewhere in production code.
+      ignore-string-values: '^(true|false|XML)$'
     depguard:
       rules:
         forbid-sort-pkg:
@@ -46,6 +52,15 @@ linters:
   exclusions:
     generated: lax
     rules:
+      # Test fixtures repeat literals by design — table-driven cases read
+      # better with expected values inline than hidden behind constants — so
+      # goconst is noise on test files. gocyclo likewise: multi-scenario
+      # property/table tests are naturally branchy without being hard to read.
+      # Production code stays covered by both.
+      - linters:
+          - goconst
+          - gocyclo
+        path: _test\.go
       - linters:
           - lll
         path: api/*
