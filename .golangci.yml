@@ -34,7 +34,8 @@ linters:
       # Validate="true", ReloadChanges="false") in the renderers — naming
       # these constants reads worse than the literal. goconst still catches
       # genuine magic strings elsewhere in production code.
-      ignore-string-values: '^(true|false|XML)$'
+      ignore-string-values:
+        - '^(true|false|XML)$'
     depguard:
       rules:
         forbid-sort-pkg:
