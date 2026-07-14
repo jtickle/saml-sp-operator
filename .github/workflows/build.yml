@@ -1,15 +1,14 @@
 name: build-authenticator
 
 # Builds the encapsulated Shibboleth SP "authenticator" image and pushes it to
-# GHCR. Pre-release: this runs off the phase-01 branch, not main. The built-in
-# GITHUB_TOKEN has packages:write to this repo's GHCR namespace, so no extra
-# secret is needed -- the SSH key that pushed the branch is the only credential
-# in play. Build context is build/authenticator (Dockerfile + supervisord.conf);
-# the rendered shibboleth2.xml/nginx.conf come from a ConfigMap at runtime, not
-# baked into the image.
+# GHCR. Runs off main when the image inputs change (plus on-demand via
+# workflow_dispatch). The built-in GITHUB_TOKEN has packages:write to this
+# repo's GHCR namespace, so no extra secret is needed. Build context is
+# build/authenticator (Dockerfile + supervisord.conf); the rendered
+# shibboleth2.xml/nginx.conf come from a ConfigMap at runtime, not baked in.
 on:
   push:
-    branches: [gsd/phase-01-shared-render-aggregation-package]
+    branches: [main]
     paths:
       - build/authenticator/Dockerfile
       - build/authenticator/supervisord.conf
