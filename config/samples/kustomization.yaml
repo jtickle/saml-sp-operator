@@ -1,0 +1,5 @@
+## Append samples of your project ##
+resources:
+- saml_v1alpha1_spinstance.yaml
+- saml_v1alpha1_appintegration.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

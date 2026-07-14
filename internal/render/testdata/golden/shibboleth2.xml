@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SPConfig xmlns="urn:mace:shibboleth:3.0:native:sp:config" xmlns:conf="urn:mace:shibboleth:3.0:native:sp:config" clockSkew="180">
+    <RequestMapper type="Native">
+        <RequestMap>
+            <Host name="app.example.com" scheme="https" port="30443" authType="shibboleth" requireSession="true"/>
+        </RequestMap>
+    </RequestMapper>
+    <ApplicationDefaults entityID="https://app.example.com/shibboleth" REMOTE_USER="email uid">
+        <Sessions lifetime="28800" timeout="3600" relayState="ss:mem" checkAddress="false" handlerSSL="true" cookieProps="https" handlerURL="https://app.example.com:30443/Shibboleth.sso">
+            <SSO entityID="https://saml.example.com/entityid">SAML2</SSO>
+            <Logout>SAML2 Local</Logout>
+            <Handler type="MetadataGenerator" Location="/Metadata" signing="false"/>
+            <Handler type="Status" Location="/Status" acl="127.0.0.1 ::1"/>
+            <Handler type="Session" Location="/Session" showAttributeValues="true"/>
+        </Sessions>
+        <Errors supportContact="root@localhost" helpLocation="/about.html" styleSheet="/shibboleth-sp/main.css"/>
+        <MetadataProvider type="XML" validate="true" url="https://mocksaml.com/api/saml/metadata" backingFilePath="/run/shibboleth/idp-metadata.xml" maxRefreshDelay="3600"/>
+        <AttributeExtractor type="XML" validate="true" reloadChanges="false" path="attribute-map.xml"/>
+        <AttributeResolver type="Query" subjectMatch="true"/>
+        <AttributeFilter type="XML" validate="true" path="attribute-policy.xml"/>
+        <CredentialResolver type="File" key="credentials/sp-key.pem" certificate="credentials/sp-cert.pem"/>
+    </ApplicationDefaults>
+    <SecurityPolicyProvider type="XML" validate="true" path="security-policy.xml"/>
+    <ProtocolProvider type="XML" validate="true" reloadChanges="false" path="protocols.xml"/>
+</SPConfig>

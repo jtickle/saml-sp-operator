@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Spike SP config. Mirrors the shipped SP3 default with spike-specific edits.
+  Single-host on purpose: app content and the SP handlers share one hostname,
+  so handlerURL resolution and cookie scoping Just Work and we isolate the
+  forward-auth / FastCGI / X-Forwarded risk. Cross-host centralized ACS
+  (separate auth host + parent-domain cookie) is phase 2.
+
+  Replace SP_HOST_PLACEHOLDER with your spike hostname before deploying.
+
+  NOTE: if shibd refuses to start citing a missing service element
+  (ListenerService / StorageService / SessionCache / ReplayCache), copy that
+  element verbatim from the package's original /etc/shibboleth/shibboleth2.xml;
+  those are defaulted and this file relies on the built-in defaults.
+-->
+<SPConfig xmlns="urn:mace:shibboleth:3.0:native:sp:config"
+          xmlns:conf="urn:mace:shibboleth:3.0:native:sp:config"
+          clockSkew="180">
+
+    <!-- Which application a request maps to, by host/path. The operator will
+         generate these <Host>/<Path> entries from each app's HTTPRoute. For
+         the spike we protect the whole host with one shared entityID.
+
+         scheme + port are MANDATORY on a non-standard port (fix N). A bare
+         <Host name="x"> auto-expands to the STANDARD ports only (http://x,
+         http://x:80, https://x, https://x:443) and never generates a key for
+         https://x:30443. So the real request authority (:30443) matches nothing
+         in the RequestMap, requireSession is never applied, and the shibauthorizer
+         returns 200 for UNAUTHENTICATED traffic -> Traefik ForwardAuth waves
+         everyone through (fail-OPEN). Pinning scheme="https" port="30443" makes
+         the RequestMap key match the reconstructed :30443 self-URL, so the
+         authorizer 302s unauthenticated requests to SSO. On plain 443 this
+         simplifies away (the auto-expanded :443 key matches). The operator MUST
+         emit scheme+port from each app's external URL. (Proven locally:
+         /authcheck no-session -> 200 without, -> 302 with.) -->
+    <RequestMapper type="Native">
+        <RequestMap>
+            <Host name="SP_HOST_PLACEHOLDER" scheme="https" port="30443"
+                  authType="shibboleth" requireSession="true"/>
+        </RequestMap>
+    </RequestMapper>
+
+    <!-- REMOTE_USER: the attribute id(s) tried in order for the principal name.
+         mocksaml releases no eppn/uid/persistent-id, so the stock list yielded an
+         empty REMOTE_USER. Use the mapped `email` (then `uid`) -> the authorizer
+         exports it as Variable-REMOTE_USER. The operator generates this from the
+         IdP's principal attribute. -->
+    <ApplicationDefaults entityID="https://SP_HOST_PLACEHOLDER/shibboleth"
+                         REMOTE_USER="email uid">
+
+        <!-- handlerSSL + cookieProps=https because Traefik terminates TLS in
+             front of us; the SP must believe it is on HTTPS or it will build
+             http:// ACS URLs that won't match metadata and won't set a secure
+             cookie. checkAddress=false because the client IP it sees is the
+             gateway, not the browser.
+
+             handlerURL is FULLY QUALIFIED, including the non-standard external
+             port (:30443). With a relative handlerURL ("/Shibboleth.sso") the SP
+             reconstructs the handler base from the request and NORMALIZES the
+             https port away, so it looks for https://host/Shibboleth.sso while
+             the real request is https://host:30443/Shibboleth.sso/..., no prefix
+             match, so shibresponder rejects EVERY handler with "should only be
+             used for Shibboleth protocol requests" (HTTP 500). Pinning the full
+             URL fixes that AND makes the ACS advertised to the IdP carry :30443,
+             so the assertion POSTs back to the right place. The operator will
+             generate this from each SP's external URL. -->
+        <Sessions lifetime="28800" timeout="3600" relayState="ss:mem"
+                  checkAddress="false" handlerSSL="true" cookieProps="https"
+                  handlerURL="https://SP_HOST_PLACEHOLDER:30443/Shibboleth.sso">
+
+            <!-- Single IdP, no discovery. mocksaml.com is a free public mock
+                 IdP (BoxyHQ); no SP registration needed, it posts a canned
+                 assertion to our ACS. Replaces samltest.id (now defunct). -->
+            <SSO entityID="https://saml.example.com/entityid">SAML2</SSO>
+
+            <Logout>SAML2 Local</Logout>
+
+            <Handler type="MetadataGenerator" Location="/Metadata" signing="false"/>
+            <Handler type="Status" Location="/Status" acl="127.0.0.1 ::1"/>
+            <Handler type="Session" Location="/Session" showAttributeValues="true"/>
+        </Sessions>
+
+        <Errors supportContact="root@localhost"
+                helpLocation="/about.html"
+                styleSheet="/shibboleth-sp/main.css"/>
+
+        <!-- mocksaml.com IdP metadata. PRODUCTION: add a signature
+             MetadataFilter with the federation/IdP signing cert; for InCommon
+             this is mandatory. backingFilePath must be writable by _shibd.
+             No RequireValidUntil filter: mocksaml issues metadata with a
+             ~10-year validUntil, which a 30-day maxValidityInterval rejects.
+             Re-add the filter (with a sane interval) against a real IdP. -->
+        <MetadataProvider type="XML" validate="true"
+              url="https://mocksaml.com/api/saml/metadata"
+              backingFilePath="/run/shibboleth/mocksaml-idp.xml"
+              maxRefreshDelay="3600"/>
+
+        <AttributeExtractor type="XML" validate="true" reloadChanges="false" path="attribute-map.xml"/>
+        <AttributeResolver type="Query" subjectMatch="true"/>
+        <AttributeFilter type="XML" validate="true" path="attribute-policy.xml"/>
+
+        <!-- SP signing/decryption keypair, mounted from the sp-credentials Secret. -->
+        <CredentialResolver type="File"
+            key="credentials/sp-key.pem" certificate="credentials/sp-cert.pem"/>
+    </ApplicationDefaults>
+
+    <SecurityPolicyProvider type="XML" validate="true" path="security-policy.xml"/>
+    <ProtocolProvider type="XML" validate="true" reloadChanges="false" path="protocols.xml"/>
+
+</SPConfig>

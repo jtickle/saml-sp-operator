@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Attributes xmlns="urn:mace:shibboleth:2.0:attribute-map" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <Attribute name="email" id="email"/>
+    <Attribute name="firstName" id="firstName"/>
+    <Attribute name="lastName" id="lastName"/>
+    <Attribute name="id" id="uid"/>
+</Attributes>

@@ -1,0 +1,242 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.21.0
+  name: appintegrations.saml.tickletechnologies.com
+spec:
+  group: saml.tickletechnologies.com
+  names:
+    kind: AppIntegration
+    listKind: AppIntegrationList
+    plural: appintegrations
+    shortNames:
+    - appint
+    singular: appintegration
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.spInstanceRef.name
+      name: SPInstance
+      type: string
+    - jsonPath: .spec.targetRef.name
+      name: Route
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: AppIntegration is the Schema for the appintegrations API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of AppIntegration
+            properties:
+              attributes:
+                description: |-
+                  attributes maps decoded SAML attribute ids to the request headers exported
+                  to the app. Under Traefik ForwardAuth the exported header is engine-named
+                  (Variable-<id>); the operator controls the <id> suffix and which attributes
+                  flow, not the prefix (DESIGN §2, §9 addendum). Omit to export none.
+                items:
+                  description: AttributeMapping maps one SAML attribute id to an exported
+                    header name.
+                  properties:
+                    header:
+                      description: header is the request header exported to the app
+                        for this attribute.
+                      minLength: 1
+                      type: string
+                    name:
+                      description: name is the SAML attribute id (as decoded by attribute-map.xml),
+                        e.g. "email".
+                      minLength: 1
+                      type: string
+                  required:
+                  - header
+                  - name
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
+              disableSingleLogout:
+                description: |-
+                  disableSingleLogout opts this app out of SP-initiated Single Logout
+                  propagation (the SLO opt-out, DESIGN §5).
+                type: boolean
+              requireSession:
+                description: |-
+                  requireSession gates the app behind an authenticated session. When true
+                  (the default when omitted), an unauthenticated request is redirected to the
+                  IdP; when false the app is accessible but attributes flow when present.
+                type: boolean
+              sessionPolicy:
+                description: sessionPolicy overrides the SP-default session lifetime/timeout
+                  for this app.
+                properties:
+                  lifetime:
+                    description: lifetime is the absolute maximum session duration.
+                    type: string
+                  timeout:
+                    description: timeout is the idle (inactivity) timeout.
+                    type: string
+                type: object
+              spInstanceRef:
+                description: |-
+                  spInstanceRef selects the SPInstance to bind to. It is cross-namespace
+                  (the SPInstance lives in the auth namespace), so the namespace is explicit.
+                properties:
+                  name:
+                    description: name of the SPInstance.
+                    minLength: 1
+                    type: string
+                  namespace:
+                    description: namespace of the SPInstance (the auth namespace).
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+              targetRef:
+                description: |-
+                  targetRef references the app's HTTPRoute in THIS namespace. There is no
+                  namespace field: attachment is namespace-local by Gateway API design.
+                properties:
+                  group:
+                    default: gateway.networking.k8s.io
+                    description: group of the target. Defaults to the Gateway API
+                      group.
+                    type: string
+                  kind:
+                    default: HTTPRoute
+                    description: kind of the target. Defaults to HTTPRoute.
+                    type: string
+                  name:
+                    description: name of the target HTTPRoute.
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                type: object
+            required:
+            - spInstanceRef
+            - targetRef
+            type: object
+          status:
+            description: status defines the observed state of AppIntegration
+            properties:
+              conditions:
+                description: |-
+                  conditions represent the current state of the AppIntegration resource.
+                  Each condition has a unique type and reflects the status of a specific aspect of the resource.
+
+                  Standard condition types include:
+                  - "Available": the resource is fully functional
+                  - "Progressing": the resource is being created or updated
+                  - "Degraded": the resource failed to reach or maintain its desired state
+
+                  The status of each condition is one of True, False, or Unknown.
+                  Condition types: SPInstanceResolved, RouteResolved, Conflict, Degraded,
+                  Ready (DESIGN §7).
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                description: observedGeneration is the .metadata.generation last reconciled.
+                format: int64
+                type: integer
+              resolvedHostnames:
+                description: |-
+                  resolvedHostnames lists the hostnames from the target HTTPRoute that this
+                  integration contributes to the SP RequestMap.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
