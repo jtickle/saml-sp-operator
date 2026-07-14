@@ -45,9 +45,9 @@ func renderAll(t *testing.T, cfg SPConfig, bindings []AppBinding, attrs []Attrib
 	}
 
 	files := []ConfigFile{
-		{Name: "shibboleth2.xml", Bytes: shib},
-		{Name: "nginx.conf", Bytes: nginx},
-		{Name: "attribute-map.xml", Bytes: amap},
+		{Name: fixtureShibboleth2Name, Bytes: shib},
+		{Name: fixtureNginxConfName, Bytes: nginx},
+		{Name: shibAttributeMapPath, Bytes: amap},
 	}
 	return files, Hash(files)
 }

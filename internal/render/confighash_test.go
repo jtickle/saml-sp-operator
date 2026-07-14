@@ -2,6 +2,13 @@ package render
 
 import "testing"
 
+// Canonical logical file names for the three rendered artifacts fed to Hash.
+// attribute-map.xml reuses the production shibAttributeMapPath constant.
+const (
+	fixtureShibboleth2Name = "shibboleth2.xml"
+	fixtureNginxConfName   = "nginx.conf"
+)
+
 // TestConfigHash asserts determinism across repeated calls, change-
 // sensitivity to the attribute-map.xml file's bytes (guards D-08 — that
 // file is reloadChanges=false and MUST force a pod roll on any change), and
@@ -10,9 +17,9 @@ import "testing"
 func TestConfigHash(t *testing.T) {
 	t.Run("deterministic across repeated calls", func(t *testing.T) {
 		files := []ConfigFile{
-			{Name: "shibboleth2.xml", Bytes: []byte("<SPConfig/>")},
-			{Name: "nginx.conf", Bytes: []byte("server {}")},
-			{Name: "attribute-map.xml", Bytes: []byte("<Attributes/>")},
+			{Name: fixtureShibboleth2Name, Bytes: []byte("<SPConfig/>")},
+			{Name: fixtureNginxConfName, Bytes: []byte("server {}")},
+			{Name: shibAttributeMapPath, Bytes: []byte("<Attributes/>")},
 		}
 
 		first := Hash(files)
@@ -26,14 +33,14 @@ func TestConfigHash(t *testing.T) {
 
 	t.Run("changing attribute-map.xml bytes changes the hash (D-08)", func(t *testing.T) {
 		before := []ConfigFile{
-			{Name: "shibboleth2.xml", Bytes: []byte("<SPConfig/>")},
-			{Name: "nginx.conf", Bytes: []byte("server {}")},
-			{Name: "attribute-map.xml", Bytes: []byte("<Attributes/>")},
+			{Name: fixtureShibboleth2Name, Bytes: []byte("<SPConfig/>")},
+			{Name: fixtureNginxConfName, Bytes: []byte("server {}")},
+			{Name: shibAttributeMapPath, Bytes: []byte("<Attributes/>")},
 		}
 		after := []ConfigFile{
-			{Name: "shibboleth2.xml", Bytes: []byte("<SPConfig/>")},
-			{Name: "nginx.conf", Bytes: []byte("server {}")},
-			{Name: "attribute-map.xml", Bytes: []byte("<Attributes changed=\"true\"/>")},
+			{Name: fixtureShibboleth2Name, Bytes: []byte("<SPConfig/>")},
+			{Name: fixtureNginxConfName, Bytes: []byte("server {}")},
+			{Name: shibAttributeMapPath, Bytes: []byte("<Attributes changed=\"true\"/>")},
 		}
 
 		if Hash(before) == Hash(after) {
