@@ -19,10 +19,10 @@ spec:
   requireSession: true
   attributes:
     - name: email
-      header: Variable-email
+      exportedID: email
     - name: firstName
-      header: Variable-firstName
+      exportedID: firstName
     - name: lastName
-      header: Variable-lastName
+      exportedID: lastName
     - name: uid
-      header: Variable-uid
+      exportedID: uid

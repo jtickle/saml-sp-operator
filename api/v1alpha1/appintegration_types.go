@@ -92,15 +92,17 @@ type TargetReference struct {
 	Name string `json:"name"`
 }
 
-// AttributeMapping maps one SAML attribute id to an exported header name.
+// AttributeMapping maps one incoming SAML attribute to the id shibd re-exports;
+// the app receives that id as the header "Variable-<exportedID>".
 type AttributeMapping struct {
 	// name is the SAML attribute id (as decoded by attribute-map.xml), e.g. "email".
 	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
 
-	// header is the request header exported to the app for this attribute.
+	// exportedID is the attribute id shibd re-exports; the app receives it as
+	// the header "Variable-<exportedID>".
 	// +kubebuilder:validation:MinLength=1
-	Header string `json:"header"`
+	ExportedID string `json:"exportedID"`
 }
 
 // SessionPolicy tunes session duration.

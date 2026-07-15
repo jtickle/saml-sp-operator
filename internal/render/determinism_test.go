@@ -60,8 +60,8 @@ func TestConfigHashStability(t *testing.T) {
 	cfg := SampleSPConfig()
 	bindings := SampleAppBindings()
 	attrs := []AttributeMapping{
-		{Name: "email", Header: "X-Remote-User"},
-		{Name: "uid", Header: "X-Remote-Uid"},
+		{Name: "email", ExportedID: "X-Remote-User"},
+		{Name: "uid", ExportedID: "X-Remote-Uid"},
 	}
 
 	t.Run("render-twice-byte-identical", func(t *testing.T) {

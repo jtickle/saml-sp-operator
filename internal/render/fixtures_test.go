@@ -61,7 +61,7 @@ func SampleAppBindings() []AppBinding {
 			CreatedAtUnix:  1_700_000_000,
 			RequireSession: true,
 			Attributes: []AttributeMapping{
-				{Name: "email", Header: "X-Remote-User"},
+				{Name: "email", ExportedID: "X-Remote-User"},
 			},
 		},
 		{
@@ -112,7 +112,7 @@ func SampleAppBindings() []AppBinding {
 			CreatedAtUnix:  1_650_000_500,
 			RequireSession: false,
 			Attributes: []AttributeMapping{
-				{Name: "uid", Header: "X-Remote-Uid"},
+				{Name: "uid", ExportedID: "X-Remote-Uid"},
 			},
 		},
 	}

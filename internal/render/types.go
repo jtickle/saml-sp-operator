@@ -89,16 +89,18 @@ type SessionDefaults struct {
 	CookieProps string
 }
 
-// AttributeMapping maps one SAML attribute id to an exported request header
-// name. It mirrors api/v1alpha1's AttributeMapping (used by both
-// AppIntegrationSpec.Attributes and, as a slice, SPConfig-adjacent SP-wide
-// attribute-map.xml rendering) without importing it.
+// AttributeMapping maps one incoming SAML attribute to the id shibd re-exports
+// (the app receives it as the header "Variable-<ExportedID>"). It mirrors
+// api/v1alpha1's AttributeMapping (used by both AppIntegrationSpec.Attributes
+// and, as a slice, SPConfig-adjacent SP-wide attribute-map.xml rendering)
+// without importing it.
 type AttributeMapping struct {
 	// Name is the SAML attribute id (as decoded by attribute-map.xml), e.g. "email".
 	Name string
 
-	// Header is the request header exported to the app for this attribute.
-	Header string
+	// ExportedID is the attribute id shibd re-exports; the app receives it as
+	// the header "Variable-<ExportedID>".
+	ExportedID string
 }
 
 // AppBinding is the plain-Go synthesized input describing one app's

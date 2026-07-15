@@ -17,10 +17,10 @@ import (
 // goldenShibboleth2SPConfig).
 func goldenAttributeMapAttrs() []AttributeMapping {
 	return []AttributeMapping{
-		{Name: "email", Header: "email"},
-		{Name: "firstName", Header: "firstName"},
-		{Name: "lastName", Header: "lastName"},
-		{Name: "id", Header: "uid"},
+		{Name: "email", ExportedID: "email"},
+		{Name: "firstName", ExportedID: "firstName"},
+		{Name: "lastName", ExportedID: "lastName"},
+		{Name: "id", ExportedID: "uid"},
 	}
 }
 
@@ -48,8 +48,8 @@ func TestRenderAttributeMap(t *testing.T) {
 // ordering).
 func TestAttributeMapOrder(t *testing.T) {
 	attrs := []AttributeMapping{
-		{Name: "zeta", Header: "zeta"},
-		{Name: "alpha", Header: "alpha"},
+		{Name: "zeta", ExportedID: "zeta"},
+		{Name: "alpha", ExportedID: "alpha"},
 	}
 
 	out, err := RenderAttributeMap(attrs)
