@@ -100,7 +100,7 @@ func baseInjectionWinners() []AppBinding {
 }
 
 func baseInjectionAttrs() []AttributeMapping {
-	return []AttributeMapping{{Name: "email", Header: "X-Remote-User"}}
+	return []AttributeMapping{{Name: "email", ExportedID: "X-Remote-User"}}
 }
 
 // injectionField names one string field this suite mutates, across
@@ -156,8 +156,8 @@ var injectionFields = []injectionField{
 	{"AttributeMapping.Name", func(_ *SPConfig, _ []AppBinding, attrs []AttributeMapping, token string) {
 		attrs[0].Name = token
 	}, "attr"},
-	{"AttributeMapping.Header", func(_ *SPConfig, _ []AppBinding, attrs []AttributeMapping, token string) {
-		attrs[0].Header = token
+	{"AttributeMapping.ExportedID", func(_ *SPConfig, _ []AppBinding, attrs []AttributeMapping, token string) {
+		attrs[0].ExportedID = token
 	}, "attr"},
 }
 

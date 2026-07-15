@@ -19,17 +19,11 @@ import "fmt"
 // Phase 5; the NginxAuthRequest-glob branch's consumer is the future
 // standalone single-container tool (D-02).
 //
-// AttributeMapping.Header carries the bare attribute id that
-// attributemap.go renders verbatim into attribute-map.xml's
-// <Attribute id=.../> (attributemap.go: `ID: a.Header`) — despite this
-// field's types.go doc comment describing it as "the request header
-// exported to the app," it is used throughout this phase as the bare id,
-// not a pre-formatted "Variable-<id>" string. ClearList applies the
-// "Variable-" prefix here, over the SAME field attributemap.go used for
-// id=, so the two renderers can never disagree about what header name an
-// attribute's export actually is (this plan's cross-plan consistency
-// requirement). This field-naming ambiguity is flagged for phase
-// verification in this plan's SUMMARY.md, not silently reinterpreted.
+// AttributeMapping.ExportedID is the attribute id shibd re-exports.
+// attributemap.go renders it verbatim into attribute-map.xml's
+// <Attribute id=.../> (attributemap.go: `ID: a.ExportedID`), and ClearList
+// applies the "Variable-" prefix here over that SAME field — so the two
+// renderers can never disagree about an attribute's exported header name.
 
 // remoteUserHeader is the principal identity header the FastCGI authorizer
 // always exports (shibboleth2.xml's ApplicationDefaults REMOTE_USER),
@@ -49,7 +43,7 @@ func ClearList(model AttachmentModel, attrs []AttributeMapping) (ClearListSpec, 
 		headers := make([]string, 0, len(attrs)+1)
 		headers = append(headers, remoteUserHeader)
 		for _, a := range attrs {
-			headers = append(headers, "Variable-"+a.Header)
+			headers = append(headers, "Variable-"+a.ExportedID)
 		}
 		return ClearListSpec{Model: model, Headers: headers, Glob: ""}, nil
 

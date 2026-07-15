@@ -27,7 +27,7 @@ import "encoding/xml"
 // attributeXML is one <Attribute name=... id=.../> child: name is the SAML
 // attribute id as decoded off the assertion (AttributeMapping.Name), id is
 // the internal id shibd re-exports as the "Variable-<id>" header
-// (AttributeMapping.Header).
+// (AttributeMapping.ExportedID).
 type attributeXML struct {
 	Name string `xml:"name,attr"`
 	ID   string `xml:"id,attr"`
@@ -55,7 +55,7 @@ func buildAttributeMapTree(attrs []AttributeMapping) attributesXML {
 	for _, a := range attrs {
 		tree.Attributes = append(tree.Attributes, attributeXML{
 			Name: a.Name,
-			ID:   a.Header,
+			ID:   a.ExportedID,
 		})
 	}
 	return tree

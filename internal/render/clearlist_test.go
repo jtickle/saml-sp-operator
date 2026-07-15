@@ -3,15 +3,14 @@ package render
 import "testing"
 
 // clearListTestAttrs is the fixed sample []AttributeMapping TestClearList
-// exercises. Header carries the bare attribute id — the exact same field
-// attributemap.go renders into attribute-map.xml's <Attribute id=...>
-// (attributemap.go: `ID: a.Header`) — so ClearList's "Variable-" + Header
-// naming stays consistent with what the FastCGI authorizer actually
-// exports for these attributes (cross-plan consistency requirement).
+// exercises. ExportedID is the attribute id attributemap.go renders into
+// attribute-map.xml's <Attribute id=...>, and ClearList prefixes "Variable-"
+// onto that same field — so the clear-list names stay consistent with what
+// the FastCGI authorizer actually exports for these attributes.
 func clearListTestAttrs() []AttributeMapping {
 	return []AttributeMapping{
-		{Name: "email", Header: "email"},
-		{Name: "id", Header: "uid"},
+		{Name: "email", ExportedID: "email"},
+		{Name: "id", ExportedID: "uid"},
 	}
 }
 

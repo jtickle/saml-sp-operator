@@ -111,7 +111,7 @@ func shibdLoadSampleWinners() []AppBinding {
 			Port:           8080,
 			RequireSession: true,
 			Attributes: []AttributeMapping{
-				{Name: "email", Header: "email"},
+				{Name: "email", ExportedID: "email"},
 			},
 		},
 	}
@@ -119,8 +119,8 @@ func shibdLoadSampleWinners() []AppBinding {
 
 func shibdLoadSampleAttributes() []AttributeMapping {
 	return []AttributeMapping{
-		{Name: "email", Header: "email"},
-		{Name: "uid", Header: "uid"},
+		{Name: "email", ExportedID: "email"},
+		{Name: "uid", ExportedID: "uid"},
 	}
 }
 
