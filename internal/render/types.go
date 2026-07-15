@@ -15,9 +15,9 @@
 // Phase 3 onward so they can never disagree about a RequestMap collision
 // winner, see Resolve) and a planned standalone single-container deployment
 // (nginx auth_request attachment) that will consume the same rendering core
-// without a base-container merge. See .planning/PROJECT.md Key Decisions and
-// .planning/phases/01-shared-render-aggregation-package/01-CONTEXT.md (D-01,
-// D-02).
+// without a base-container merge. See DESIGN.md — the own-orchestration /
+// borrow-SAML framing and the shared render seam — for the authoritative
+// rationale behind this k8s-free boundary.
 package render
 
 // SPConfig is the plain-Go input describing one SP deployment's identity,
