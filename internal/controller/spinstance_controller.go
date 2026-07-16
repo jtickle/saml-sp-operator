@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -49,6 +50,10 @@ type SPInstanceReconciler struct {
 // +kubebuilder:rbac:groups=saml.tickletechnologies.com,resources=spinstances,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=saml.tickletechnologies.com,resources=spinstances/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=saml.tickletechnologies.com,resources=spinstances/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
 // Condition types set on SPInstanceStatus.Conditions (DESIGN §7).
 const (
@@ -94,6 +99,8 @@ func (r *SPInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			return ctrl.Result{}, err
 		}
 
+		sp.Status.ObservedGeneration = sp.Generation
+
 		apimeta.SetStatusCondition(&sp.Status.Conditions, metav1.Condition{
 			Type:               conditionDegraded,
 			Status:             metav1.ConditionTrue,
@@ -105,7 +112,7 @@ func (r *SPInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			log.Error(err, "unable to update SPInstance status")
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 	}
 
 	files, hash, err := renderConfig(sp)

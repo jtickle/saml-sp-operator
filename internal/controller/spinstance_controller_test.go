@@ -421,10 +421,13 @@ var _ = Describe("SPInstance Controller", func() {
 				SPImage: spImageTest,
 			}
 
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+			result, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: missingSecretNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
+
+			By("checking the reconcile Result requeues instead of waiting on a Secret watch")
+			Expect(result.RequeueAfter).To(BeNumerically(">", 0))
 
 			By("checking Degraded=True with a reason naming the missing Secret")
 			Expect(k8sClient.Get(ctx, missingSecretNamespacedName, resource)).To(Succeed())
@@ -433,6 +436,9 @@ var _ = Describe("SPInstance Controller", func() {
 			Expect(degraded.Status).To(Equal(metav1.ConditionTrue))
 			Expect(degraded.Reason).To(Equal("CredentialsSecretMissing"))
 			Expect(degraded.Message).To(ContainSubstring("sp-keypair-does-not-exist"))
+
+			By("checking ObservedGeneration advanced on the Degraded path")
+			Expect(resource.Status.ObservedGeneration).To(Equal(resource.Generation))
 
 			By("checking no ConfigMap, Deployment, or Services were created")
 			cm := &corev1.ConfigMap{}
