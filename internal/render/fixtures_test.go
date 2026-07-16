@@ -27,7 +27,6 @@ func SampleSPConfig() SPConfig {
 			HandlerSSL:      true,
 			CookieProps:     "https",
 		},
-		ExternalURL: "https://sp.example.com:30443",
 	}
 }
 

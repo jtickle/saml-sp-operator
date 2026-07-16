@@ -45,11 +45,6 @@ type SPConfig struct {
 	// Sessions tunes session lifetime/timeout/behavior for shibboleth2.xml's
 	// <Sessions> element.
 	Sessions SessionDefaults
-
-	// ExternalURL is this SP's own externally-reachable base URL — the input
-	// to DeriveSelfURL (RENDER-02), which in turn feeds the fully-qualified
-	// handlerURL and the nginx.conf self-URL directives.
-	ExternalURL string
 }
 
 // IdPConfig describes the trusted identity provider. It mirrors

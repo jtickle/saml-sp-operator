@@ -31,7 +31,6 @@ func goldenShibboleth2SPConfig() SPConfig {
 			HandlerSSL:      true,
 			CookieProps:     "https",
 		},
-		ExternalURL: "https://app.example.com:30443",
 	}
 }
 
@@ -66,6 +65,13 @@ func TestRenderShibboleth2(t *testing.T) {
 	if string(got) != string(want) {
 		t.Errorf("RenderShibboleth2 output does not match golden fixture byte-for-byte\n--- want ---\n%s\n--- got ---\n%s", want, got)
 	}
+
+	if !strings.Contains(string(got), `handlerURL="/Shibboleth.sso"`) {
+		t.Errorf("expected relative handlerURL; got:\n%s", got)
+	}
+	if strings.Contains(string(got), "https://") && strings.Contains(string(got), `handlerURL="https://`) {
+		t.Errorf("handlerURL must not be absolute/host-pinned (multi-host):\n%s", got)
+	}
 }
 
 // TestRequestMapOrdering asserts the RequestMap is aggregated in a
@@ -88,10 +94,7 @@ func TestRequestMapOrdering(t *testing.T) {
 		},
 	}
 
-	tree, err := buildShibboleth2Tree(cfg, winners)
-	if err != nil {
-		t.Fatalf("buildShibboleth2Tree: %v", err)
-	}
+	tree := buildShibboleth2Tree(cfg, winners)
 
 	hosts := tree.RequestMapper.RequestMap.Hosts
 	if len(hosts) != 1 {

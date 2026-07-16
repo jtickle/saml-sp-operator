@@ -80,7 +80,6 @@ func baseInjectionCfg() SPConfig {
 			HandlerSSL:      true,
 			CookieProps:     "https",
 		},
-		ExternalURL: "https://sp.example.com:30443",
 	}
 }
 
@@ -166,10 +165,11 @@ var injectionFields = []injectionField{
 // RenderShibboleth2/RenderAttributeMap to return an error, (b) always
 // re-parse as well-formed XML, and (c) never appear as unescaped structural
 // XML — proven by finding the token embedded in a decoded attribute/chardata
-// value, not as raw markup. A hostile external hostname is separately
-// asserted to make RenderNginxConf return an error via validateHostname's
-// allowlist (RENDER-07/T-05-01), the renderer's own dedicated defense since
-// text/template has no auto-escaping.
+// value, not as raw markup. RenderNginxConf carries no CRD-derived string
+// input at all as of RENDER-02 (host-agnostic self-URL): its template
+// executes over a single fixed standardHTTPSPort constant, so the prior
+// hostile-external-hostname injection case no longer has an applicable
+// input to exercise (nginxconf.go).
 func TestInjectionSafety(t *testing.T) {
 	for _, tok := range hostileTokens {
 		t.Run(tok.name, func(t *testing.T) {
@@ -201,25 +201,6 @@ func TestInjectionSafety(t *testing.T) {
 			}
 		})
 	}
-
-	t.Run("RenderNginxConf/hostile-hostname-rejected", func(t *testing.T) {
-		// These hostnames all parse fine via net/url (host is a permissive
-		// reg-name per RFC 3986) but fail validateHostname's
-		// [a-zA-Z0-9.-] allowlist — exactly the class of value that would
-		// otherwise reach text/template's Execute unescaped (T-05-01).
-		hostileHostnames := []string{
-			"https://ev_il.example.com:30443",
-			"https://evil$(rm).example.com:30443",
-			"https://evil';drop.example.com:30443",
-		}
-		for _, u := range hostileHostnames {
-			cfg := baseInjectionCfg()
-			cfg.ExternalURL = u
-			if _, err := RenderNginxConf(cfg); err == nil {
-				t.Errorf("RenderNginxConf(%q): expected an error rejecting the hostile hostname, got nil", u)
-			}
-		}
-	})
 }
 
 // assertWellFormedXML decodes the full token stream of doc via

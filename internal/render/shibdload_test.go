@@ -65,18 +65,17 @@ const shibdLoadSuccessLogLine = "Shibboleth initialization complete."
 const (
 	shibdLoadIdPEntityID  = "https://idp.invalid.example/idp/shibboleth"
 	shibdLoadMetadataURL  = "https://idp.invalid.example/metadata"
-	shibdLoadExternalURL  = "https://sp.example.com:8080"
 	shibdLoadCredKeyPath  = "/run/shibboleth/sp-credentials/tls.key"
 	shibdLoadCredCertPath = "/run/shibboleth/sp-credentials/tls.crt"
 )
 
 // shibdLoadSampleSPConfig returns the SPConfig this test renders and
 // mounts. It is a load-test-local fixture (not fixtures_test.go's shared
-// SampleSPConfig) because the MetadataURL/IdP.EntityID/ExternalURL/
-// credential paths here are deliberately shaped for a hermetic
-// containerized load test (fast-failing .invalid metadata host,
-// credential paths matching this file's mounted files), not for the
-// golden byte-compare fixtures plans 03/04/05 already lock.
+// SampleSPConfig) because the MetadataURL/IdP.EntityID/credential paths
+// here are deliberately shaped for a hermetic containerized load test
+// (fast-failing .invalid metadata host, credential paths matching this
+// file's mounted files), not for the golden byte-compare fixtures plans
+// 03/04/05 already lock.
 func shibdLoadSampleSPConfig() SPConfig {
 	return SPConfig{
 		EntityID: "https://sp.example.com/shibboleth",
@@ -95,7 +94,6 @@ func shibdLoadSampleSPConfig() SPConfig {
 			HandlerSSL:      true,
 			CookieProps:     "https",
 		},
-		ExternalURL: shibdLoadExternalURL,
 	}
 }
 
