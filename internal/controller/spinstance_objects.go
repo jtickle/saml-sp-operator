@@ -37,6 +37,15 @@ import (
 // therefore no rollout on every reconcile.
 const spConfigHashAnnotation = "saml.tickletechnologies.com/config-hash"
 
+// volShibConfig, volSPCredentials, and volShibRun are the pod volume names
+// shared between the Deployment's VolumeMounts and its Volumes — a mount and
+// its volume must agree on the name, so each is referenced in both places.
+const (
+	volShibConfig    = "shib-config"
+	volSPCredentials = "sp-credentials"
+	volShibRun       = "shib-run"
+)
+
 // spPodLabels returns a fresh label map identifying the SP pods for sp. The
 // Deployment's pod template and both Services' selectors all call this
 // instead of sharing one map by reference, so none of them can mutate a
@@ -132,18 +141,18 @@ func (r *SPInstanceReconciler) reconcileDeployment(ctx context.Context, sp *saml
 					FailureThreshold:    3,
 				},
 				VolumeMounts: []corev1.VolumeMount{
-					{Name: "shib-config", MountPath: "/etc/shibboleth/shibboleth2.xml", SubPath: "shibboleth2.xml"},
-					{Name: "shib-config", MountPath: "/etc/shibboleth/attribute-map.xml", SubPath: "attribute-map.xml"},
-					{Name: "shib-config", MountPath: "/etc/nginx/nginx.conf", SubPath: "nginx.conf"},
-					{Name: "sp-credentials", MountPath: "/run/shibboleth/sp-credentials", ReadOnly: true},
-					{Name: "shib-run", MountPath: "/run/shibboleth"},
+					{Name: volShibConfig, MountPath: "/etc/shibboleth/shibboleth2.xml", SubPath: fileShibboleth2},
+					{Name: volShibConfig, MountPath: "/etc/shibboleth/attribute-map.xml", SubPath: fileAttributeMap},
+					{Name: volShibConfig, MountPath: "/etc/nginx/nginx.conf", SubPath: fileNginxConf},
+					{Name: volSPCredentials, MountPath: "/run/shibboleth/sp-credentials", ReadOnly: true},
+					{Name: volShibRun, MountPath: "/run/shibboleth"},
 				},
 			},
 		}
 
 		dep.Spec.Template.Spec.Volumes = []corev1.Volume{
 			{
-				Name: "shib-config",
+				Name: volShibConfig,
 				VolumeSource: corev1.VolumeSource{
 					ConfigMap: &corev1.ConfigMapVolumeSource{
 						LocalObjectReference: corev1.LocalObjectReference{Name: sp.Name + "-sp"},
@@ -151,7 +160,7 @@ func (r *SPInstanceReconciler) reconcileDeployment(ctx context.Context, sp *saml
 				},
 			},
 			{
-				Name: "sp-credentials",
+				Name: volSPCredentials,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
 						SecretName: sp.Spec.Credentials.Name,
@@ -159,7 +168,7 @@ func (r *SPInstanceReconciler) reconcileDeployment(ctx context.Context, sp *saml
 				},
 			},
 			{
-				Name: "shib-run",
+				Name: volShibRun,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},

@@ -40,7 +40,8 @@ import (
 	// +kubebuilder:scaffold:imports
 )
 
-const defaultSPImage = "ghcr.io/jtickle/saml-sp-operator/shib-authenticator@sha256:0e33ee7fea4524cb3caa8744b22f05a80703d22444ef198368484dc523f41319"
+const defaultSPImage = "ghcr.io/jtickle/saml-sp-operator/shib-authenticator" +
+	"@sha256:0e33ee7fea4524cb3caa8744b22f05a80703d22444ef198368484dc523f41319"
 
 var (
 	scheme   = runtime.NewScheme()

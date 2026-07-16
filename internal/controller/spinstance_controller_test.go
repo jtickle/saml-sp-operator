@@ -289,7 +289,7 @@ var _ = Describe("SPInstance Controller", func() {
 			dep := &appsv1.Deployment{}
 			depName := types.NamespacedName{Name: resourceName + "-sp", Namespace: resourceNamespace}
 			Expect(k8sClient.Get(ctx, depName, dep)).To(Succeed())
-			podLabels := dep.Spec.Template.ObjectMeta.Labels
+			podLabels := dep.Spec.Template.Labels
 			Expect(podLabels).To(HaveKeyWithValue("app.kubernetes.io/name", "sp"))
 			Expect(podLabels).To(HaveKeyWithValue("app.kubernetes.io/instance", resourceName))
 

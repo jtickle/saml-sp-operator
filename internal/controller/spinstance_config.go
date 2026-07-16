@@ -44,6 +44,16 @@ const (
 	spSessionCookieProps     = "https"
 )
 
+// fileShibboleth2, fileAttributeMap, and fileNginxConf are the file names
+// of the three rendered Shibboleth SP config files. They are the keys in the
+// ConfigMap's data and the SubPaths the Deployment projects them to, so both
+// this package and spinstance_objects.go reference them.
+const (
+	fileShibboleth2  = "shibboleth2.xml"
+	fileAttributeMap = "attribute-map.xml"
+	fileNginxConf    = "nginx.conf"
+)
+
 // spDefaultRemoteUser is the 1a default REMOTE_USER attribute-id search
 // order: no AppIntegrations exist yet in slice 1a, so this list cannot be
 // derived from bound apps' attribute mappings.
@@ -92,9 +102,9 @@ func renderConfig(sp *samlv1alpha1.SPInstance) (map[string]string, string, error
 	}
 
 	files := []render.ConfigFile{
-		{Name: "shibboleth2.xml", Bytes: shibboleth2},
-		{Name: "attribute-map.xml", Bytes: attributeMap},
-		{Name: "nginx.conf", Bytes: nginxConf},
+		{Name: fileShibboleth2, Bytes: shibboleth2},
+		{Name: fileAttributeMap, Bytes: attributeMap},
+		{Name: fileNginxConf, Bytes: nginxConf},
 	}
 	hash := render.Hash(files)
 
