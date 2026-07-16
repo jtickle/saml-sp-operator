@@ -21,6 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -88,6 +89,39 @@ var _ = Describe("SPInstance Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
 			// Example: If you expect a certain status condition after reconciliation, verify it here.
+		})
+
+		It("should reconcile a ConfigMap holding the rendered SP config, owned by the SPInstance", func() {
+			By("Reconciling the created resource")
+			controllerReconciler := &SPInstanceReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("checking the ConfigMap was created with the rendered config keys")
+			cm := &corev1.ConfigMap{}
+			cmName := types.NamespacedName{Name: resourceName + "-sp", Namespace: resourceNamespace}
+			Expect(k8sClient.Get(ctx, cmName, cm)).To(Succeed())
+
+			for _, key := range []string{"shibboleth2.xml", "attribute-map.xml", "nginx.conf"} {
+				Expect(cm.Data).To(HaveKey(key))
+				Expect(cm.Data[key]).NotTo(BeEmpty())
+			}
+
+			By("checking the ConfigMap has an ownerRef to the SPInstance")
+			Expect(k8sClient.Get(ctx, typeNamespacedName, spinstance)).To(Succeed())
+			Expect(cm.OwnerReferences).To(HaveLen(1))
+			owner := cm.OwnerReferences[0]
+			Expect(owner.Kind).To(Equal("SPInstance"))
+			Expect(owner.Name).To(Equal(resourceName))
+			Expect(owner.UID).To(Equal(spinstance.UID))
+			Expect(owner.Controller).NotTo(BeNil())
+			Expect(*owner.Controller).To(BeTrue())
 		})
 	})
 })

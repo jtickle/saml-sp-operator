@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,17 +40,35 @@ type SPInstanceReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the SPInstance object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
+//
+// This is a partial reconcile: it renders the SP config and reconciles the
+// ConfigMap holding it. Later tasks add the Deployment (Task 5), Services
+// (Task 6), and status/Degraded ordering (Task 7).
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.24.1/pkg/reconcile
 func (r *SPInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
-	// TODO(user): your logic here
+	sp := &samlv1alpha1.SPInstance{}
+	if err := r.Get(ctx, req.NamespacedName, sp); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		log.Error(err, "unable to fetch SPInstance")
+		return ctrl.Result{}, err
+	}
+
+	files, _, err := renderConfig(sp)
+	if err != nil {
+		log.Error(err, "unable to render SP config")
+		return ctrl.Result{}, err
+	}
+
+	if _, err := r.reconcileConfigMap(ctx, sp, files); err != nil {
+		log.Error(err, "unable to reconcile ConfigMap")
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
