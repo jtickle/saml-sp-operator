@@ -24,6 +24,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -50,6 +51,24 @@ var _ = Describe("SPInstance Controller", func() {
 		spinstance := &samlv1alpha1.SPInstance{}
 
 		BeforeEach(func() {
+			By("creating the credentials Secret referenced by the SPInstance")
+			secret := &corev1.Secret{}
+			secretName := types.NamespacedName{Name: "sp-keypair", Namespace: resourceNamespace}
+			secretErr := k8sClient.Get(ctx, secretName, secret)
+			if secretErr != nil && errors.IsNotFound(secretErr) {
+				secret = &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "sp-keypair",
+						Namespace: resourceNamespace,
+					},
+					StringData: map[string]string{
+						"tls.crt": "dummy-cert",
+						"tls.key": "dummy-key",
+					},
+				}
+				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+			}
+
 			By("creating the custom resource for the Kind SPInstance")
 			err := k8sClient.Get(ctx, typeNamespacedName, spinstance)
 			if err != nil && errors.IsNotFound(err) {
@@ -78,6 +97,13 @@ var _ = Describe("SPInstance Controller", func() {
 
 			By("Cleanup the specific resource instance SPInstance")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+
+			By("Cleanup the credentials Secret")
+			secret := &corev1.Secret{}
+			secretName := types.NamespacedName{Name: "sp-keypair", Namespace: resourceNamespace}
+			if err := k8sClient.Get(ctx, secretName, secret); err == nil {
+				Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+			}
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
@@ -300,6 +326,130 @@ var _ = Describe("SPInstance Controller", func() {
 			Expect(headlessOwner.UID).To(Equal(spinstance.UID))
 			Expect(headlessOwner.Controller).NotTo(BeNil())
 			Expect(*headlessOwner.Controller).To(BeTrue())
+		})
+
+		It("should set configHash, observedGeneration, ConfigRendered, and Ready reflecting Deployment availability", func() {
+			By("Reconciling the created resource")
+			controllerReconciler := &SPInstanceReconciler{
+				Client:  k8sClient,
+				Scheme:  k8sClient.Scheme(),
+				SPImage: spImageTest,
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("checking status.configHash, observedGeneration, and ConfigRendered")
+			Expect(k8sClient.Get(ctx, typeNamespacedName, spinstance)).To(Succeed())
+			Expect(spinstance.Status.ConfigHash).NotTo(BeEmpty())
+			Expect(spinstance.Status.ObservedGeneration).To(Equal(spinstance.Generation))
+
+			configRendered := apimeta.FindStatusCondition(spinstance.Status.Conditions, "ConfigRendered")
+			Expect(configRendered).NotTo(BeNil())
+			Expect(configRendered.Status).To(Equal(metav1.ConditionTrue))
+
+			By("checking Degraded is absent on the success path")
+			degraded := apimeta.FindStatusCondition(spinstance.Status.Conditions, "Degraded")
+			Expect(degraded).To(BeNil())
+
+			By("checking Ready is not True before the Deployment reports Available")
+			ready := apimeta.FindStatusCondition(spinstance.Status.Conditions, "Ready")
+			if ready != nil {
+				Expect(ready.Status).NotTo(Equal(metav1.ConditionTrue))
+			}
+
+			By("patching the Deployment's status to report Available=True")
+			dep := &appsv1.Deployment{}
+			depName := types.NamespacedName{Name: resourceName + "-sp", Namespace: resourceNamespace}
+			Expect(k8sClient.Get(ctx, depName, dep)).To(Succeed())
+			dep.Status.Conditions = []appsv1.DeploymentCondition{
+				{Type: appsv1.DeploymentAvailable, Status: corev1.ConditionTrue},
+			}
+			Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
+
+			By("reconciling again so the Ready condition picks up the Deployment's availability")
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(k8sClient.Get(ctx, typeNamespacedName, spinstance)).To(Succeed())
+			ready = apimeta.FindStatusCondition(spinstance.Status.Conditions, "Ready")
+			Expect(ready).NotTo(BeNil())
+			Expect(ready.Status).To(Equal(metav1.ConditionTrue))
+		})
+
+		It("should set Degraded and create no objects when the credentials Secret is missing", func() {
+			// This test uses its own SPInstance name and references a Secret
+			// that is never created, rather than reusing the shared
+			// "test-resource" fixture: envtest runs with no garbage-collector
+			// controller, so ConfigMap/Deployment/Service objects created by
+			// other specs against "test-resource-sp" persist across specs, and
+			// the no-objects-created assertions below need a name that no
+			// other spec has ever reconciled successfully.
+			const missingSecretResourceName = "test-resource-missing-secret"
+			missingSecretNamespacedName := types.NamespacedName{
+				Name:      missingSecretResourceName,
+				Namespace: resourceNamespace,
+			}
+
+			By("creating an SPInstance referencing a credentials Secret that does not exist")
+			resource := &samlv1alpha1.SPInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      missingSecretResourceName,
+					Namespace: resourceNamespace,
+				},
+				Spec: samlv1alpha1.SPInstanceSpec{
+					EntityID:    "https://sp.example.com/shibboleth-missing-secret",
+					Credentials: samlv1alpha1.SecretReference{Name: "sp-keypair-does-not-exist"},
+					IdP: samlv1alpha1.IdPConfig{
+						MetadataURL: "https://mocksaml.com/api/saml/metadata",
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			DeferCleanup(func() {
+				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			})
+
+			By("Reconciling the created resource")
+			controllerReconciler := &SPInstanceReconciler{
+				Client:  k8sClient,
+				Scheme:  k8sClient.Scheme(),
+				SPImage: spImageTest,
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: missingSecretNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("checking Degraded=True with a reason naming the missing Secret")
+			Expect(k8sClient.Get(ctx, missingSecretNamespacedName, resource)).To(Succeed())
+			degraded := apimeta.FindStatusCondition(resource.Status.Conditions, "Degraded")
+			Expect(degraded).NotTo(BeNil())
+			Expect(degraded.Status).To(Equal(metav1.ConditionTrue))
+			Expect(degraded.Reason).To(Equal("CredentialsSecretMissing"))
+			Expect(degraded.Message).To(ContainSubstring("sp-keypair-does-not-exist"))
+
+			By("checking no ConfigMap, Deployment, or Services were created")
+			cm := &corev1.ConfigMap{}
+			cmName := types.NamespacedName{Name: missingSecretResourceName + "-sp", Namespace: resourceNamespace}
+			Expect(k8sClient.Get(ctx, cmName, cm)).To(HaveOccurred())
+
+			dep := &appsv1.Deployment{}
+			depName := types.NamespacedName{Name: missingSecretResourceName + "-sp", Namespace: resourceNamespace}
+			Expect(k8sClient.Get(ctx, depName, dep)).To(HaveOccurred())
+
+			svc := &corev1.Service{}
+			svcName := types.NamespacedName{Name: missingSecretResourceName + "-sp", Namespace: resourceNamespace}
+			Expect(k8sClient.Get(ctx, svcName, svc)).To(HaveOccurred())
+
+			headlessSvc := &corev1.Service{}
+			headlessSvcName := types.NamespacedName{Name: missingSecretResourceName + "-sp-headless", Namespace: resourceNamespace}
+			Expect(k8sClient.Get(ctx, headlessSvcName, headlessSvc)).To(HaveOccurred())
 		})
 	})
 })
