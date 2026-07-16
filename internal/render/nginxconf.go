@@ -17,9 +17,8 @@ import (
 // the responder block passes the PER-REQUEST host ($host, no port pin) and
 // SERVER_PORT is always the standard 443 — there is no longer a single
 // external host/port to derive from SPConfig. Scheme is forced by
-// SHIBSP_SERVER_SCHEME=https (pod env), not by this template. See
-// shibmultihost_test.go's multiHostNginxConf, this rendering's verified
-// target shape.
+// SHIBSP_SERVER_SCHEME=https (pod env), not by this template. This rendering
+// is exercised by shibmultihost_test.go, which drives RenderNginxConf directly.
 var nginxConfTemplate = template.Must(template.New("nginx.conf").Parse(nginxConfTemplateSrc))
 
 // standardHTTPSPort is the only SERVER_PORT this template ever emits: with

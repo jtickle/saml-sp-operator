@@ -13,7 +13,7 @@ package render
 // test now drives THIS PACKAGE's own RenderShibboleth2/RenderNginxConf
 // output directly (Task 2, post-RENDER-02) — the same real renderer path
 // shibboleth2_test.go's golden byte-compare and shibdload_test.go's
-// TestShibdLoad exercise, just with two winning AppBindings on two distinct
+// TestShibdLoad exercise, with two winning AppBindings on two distinct
 // hostnames instead of one.
 //
 // A prior finding: a relative handlerURL FAILED on the :30443 NodePort,
