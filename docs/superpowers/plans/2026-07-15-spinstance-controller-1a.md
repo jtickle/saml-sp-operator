@@ -16,7 +16,7 @@
 - **No `SPConfig.ExternalURL`** and no `SPInstanceSpec.externalURL` — removed/never added.
 - **Readiness probe (pinned empirically):** exec `curl -fsS http://localhost:8080/Shibboleth.sso/Status` (curl is in the image; wget is not). No nginx.conf change needed.
 - **SP image:** operator-global flag `--sp-image`, default the pinned digest `ghcr.io/jtickle/saml-sp-operator/shib-authenticator@sha256:0e33ee7fea4524cb3caa8744b22f05a80703d22444ef198368484dc523f41319` (same pin as `shibdload_test.go`).
-- **Container mount contract** (from the proven `shibdload` harness): rendered files → `/etc/shibboleth/shibboleth2.xml`, `/etc/shibboleth/attribute-map.xml`, `/etc/nginx/nginx.conf`; credential Secret → `/run/shibboleth/sp-credentials/tls.{key,crt}`; IdP-metadata backing at `render.shibMetadataProviderBackingFilePath` (needs a writable volume). Confirm exact writable-dir needs in Task C1's container test.
+- **Container mount contract** (from the proven `shibdload` harness): rendered files → `/etc/shibboleth/shibboleth2.xml`, `/etc/shibboleth/attribute-map.xml`, `/etc/nginx/nginx.conf`; credential Secret → `/run/shibboleth/sp-credentials/tls.{key,crt}`; IdP-metadata backing at `render.shibMetadataProviderBackingFilePath` (needs a writable volume). Confirm exact writable-dir needs in Task 9's container test.
 - **Ownership:** all four objects `ownerRef` the `SPInstance` (same namespace). No finalizer in 1a.
 - **Deferred (do NOT implement):** memcached, NetworkPolicy, RBAC/cache scoping, CEL, leader election, metrics, OBS-03 metadata URL, `boundCount`. Those are 1b/later.
 - **Branch/commits:** this worktree (`feat/spinstance-controller`); everything lands via the slice PR. American English; no "simply"/"just". Commit trailers:
@@ -46,7 +46,7 @@
 
 # Phase A — Render revision (host-agnostic)
 
-## Task A1: Relative handlerURL + remove `SPConfig.ExternalURL`
+## Task 1: Relative handlerURL + remove `SPConfig.ExternalURL`
 
 **Files:**
 - Modify: `internal/render/types.go` (remove `ExternalURL` from `SPConfig`), `internal/render/selfurl.go`, `internal/render/shibboleth2.go`, `internal/render/nginxconf.go`
@@ -113,12 +113,12 @@ by shibmultihost_test.go.
 EOF
 ```
 
-## Task A2: Refresh golden fixtures + adapt the multi-host regression test
+## Task 2: Refresh golden fixtures + adapt the multi-host regression test
 
 **Files:**
 - Modify: `internal/render/testdata/golden/shibboleth2.xml`, `internal/render/testdata/golden/nginx.conf` (whatever the golden set is), `internal/render/shibmultihost_test.go`
 
-- [ ] **Step 1: Regenerate/hand-edit the golden files** to the new relative-handler output. If the package has a golden-update mode (`-update` flag), run `go test ./internal/render/ -run TestRenderShibboleth2 -update`; otherwise edit the golden `handlerURL` and nginx responder block by hand to match Task A1's output.
+- [ ] **Step 1: Regenerate/hand-edit the golden files** to the new relative-handler output. If the package has a golden-update mode (`-update` flag), run `go test ./internal/render/ -run TestRenderShibboleth2 -update`; otherwise edit the golden `handlerURL` and nginx responder block by hand to match Task 1's output.
 
 - [ ] **Step 2: Adapt `shibmultihost_test.go` to drive the real renderer.** Replace the hand-crafted `multiHostShibboleth2XML()` with a call to `RenderShibboleth2(cfg, winners)` where `winners` are two `AppBinding`s on `appa.example.com` and `appb.example.com`; keep `multiHostNginxConf` (or switch to `RenderNginxConf(cfg)`). The per-host ACS assertions stay.
 
@@ -134,7 +134,7 @@ Expected: all pass — shibd loads the revised config AND the multi-host ACS che
 
 # Phase B — SPInstance controller
 
-## Task B1: `SPInstance` → `render.SPConfig` + render + hash
+## Task 3: `SPInstance` → `render.SPConfig` + render + hash
 
 **Files:**
 - Create: `internal/controller/spinstance_config.go`, `internal/controller/spinstance_config_test.go`
@@ -163,7 +163,7 @@ func TestRenderConfig(t *testing.T) {
 
 - [ ] **Step 4: Run → pass. Commit.**
 
-## Task B2: ConfigMap builder + reconcile
+## Task 4: ConfigMap builder + reconcile
 
 **Files:** `internal/controller/spinstance_objects.go` (create), `spinstance_controller.go` (wire), envtest in `spinstance_controller_test.go`.
 
@@ -174,7 +174,7 @@ func TestRenderConfig(t *testing.T) {
 - [ ] **Step 3: Implement** using `controllerutil.CreateOrUpdate` + `ctrl.SetControllerReference`. Data = the three files.
 - [ ] **Step 4: Run → pass. Commit.**
 
-## Task B3: Deployment builder (rollout gating + fail-safe + readiness)
+## Task 5: Deployment builder (rollout gating + fail-safe + readiness)
 
 **Files:** `spinstance_objects.go`, `spinstance_controller.go`, envtest.
 
@@ -212,18 +212,18 @@ c := corev1.Container{
     },
 }
 ```
-Volumes: `shib-config` from the ConfigMap `<name>-sp`; `sp-credentials` from `sp.Spec.Credentials.Name`; `shib-run` an `emptyDir`. Set `ownerRef`. Note: the credential mount + `/run/shibboleth` writable dir + subPath layout must be **confirmed against the real container** in Task C1 (the `shibdload` harness proves the file locations; the writable-dir need is inferred).
+Volumes: `shib-config` from the ConfigMap `<name>-sp`; `sp-credentials` from `sp.Spec.Credentials.Name`; `shib-run` an `emptyDir`. Set `ownerRef`. Note: the credential mount + `/run/shibboleth` writable dir + subPath layout must be **confirmed against the real container** in Task 9 (the `shibdload` harness proves the file locations; the writable-dir need is inferred).
 
 - [ ] **Step 4: Run → pass. Commit.**
 
-## Task B4: ClusterIP + headless Services
+## Task 6: ClusterIP + headless Services
 
 **Files:** `spinstance_objects.go`, envtest.
 
 - [ ] **Step 1: envtest** — assert a ClusterIP Service `<name>-sp` and a headless Service `<name>-sp-headless` (`ClusterIP: "None"`), both selecting the pod labels, port 8080, ownerRef'd.
 - [ ] **Step 2: Run → fail. Step 3: Implement. Step 4: pass. Commit.**
 
-## Task B5: Status (conditions, hash, observedGeneration, Degraded)
+## Task 7: Status (conditions, hash, observedGeneration, Degraded)
 
 **Files:** `spinstance_controller.go`, envtest.
 
@@ -232,7 +232,7 @@ Volumes: `shib-config` from the ConfigMap `<name>-sp`; `sp-credentials` from `sp
 - [ ] **Step 3: Implement** the reconcile ordering: Secret-existence check first (missing → set `Degraded`, return without creating objects); else render → reconcile objects → set `ConfigRendered`/`configHash`/`observedGeneration`; set `Ready` from the Deployment's `Available` condition via `meta.SetStatusCondition` + status patch.
 - [ ] **Step 4: Run → pass. Commit.**
 
-## Task B6: `--sp-image` flag
+## Task 8: `--sp-image` flag
 
 **Files:** `cmd/main.go`, `spinstance_controller.go` (add `SPImage string` field).
 
@@ -243,11 +243,11 @@ Volumes: `shib-config` from the ConfigMap `<name>-sp`; `sp-credentials` from `sp
 
 # Phase C — Verification
 
-## Task C1: Container-confirm the running SP + full suite
+## Task 9: Container-confirm the running SP + full suite
 
 **Files:** possibly a new `internal/controller` or `internal/render` `shibdload`-tagged test, or a manual kind run.
 
-- [ ] **Step 1: Confirm the Deployment's container contract against the real image.** Using the `shibdload` harness pattern, boot the pinned image with the exact mounts the Deployment specifies (ConfigMap subPaths, credential path, `/run/shibboleth` emptyDir) + `SHIBSP_SERVER_SCHEME=https`, and assert shibd reaches `"Shibboleth initialization complete."` and the readiness command `curl -fsS http://localhost:8080/Shibboleth.sso/Status` exits 0. This closes the inferred mount/writable-dir details from Task B3 with real evidence.
+- [ ] **Step 1: Confirm the Deployment's container contract against the real image.** Using the `shibdload` harness pattern, boot the pinned image with the exact mounts the Deployment specifies (ConfigMap subPaths, credential path, `/run/shibboleth` emptyDir) + `SHIBSP_SERVER_SCHEME=https`, and assert shibd reaches `"Shibboleth initialization complete."` and the readiness command `curl -fsS http://localhost:8080/Shibboleth.sso/Status` exits 0. This closes the inferred mount/writable-dir details from Task 5 with real evidence.
 - [ ] **Step 2: Full hermetic + container suites green.**
 
 Run: `KUBEBUILDER_ASSETS=/home/claude/saml-sp-operator/bin/k8s/1.36.2-linux-amd64 go test ./...`
@@ -261,14 +261,14 @@ Expected: all pass.
 ## Self-Review
 
 **Spec coverage:**
-- SPI-01 (four objects) → B2/B3/B4 ✓
-- SPI-02 (hash-gated rollout) → B1 (hash) + B3 (annotation, no-op vs change tests) ✓
-- SPI-03 (real readiness) → B3 (curl `/Status` exec probe, empirically pinned) + C1 ✓
-- SPI-07 (`maxUnavailable:0`) → B3 ✓
-- RENDER-02 host-agnostic revision → A1/A2 ✓
-- Status/Degraded → B5 ✓; `--sp-image` → B6 ✓
+- SPI-01 (four objects) → Task 4/Task 5/Task 6 ✓
+- SPI-02 (hash-gated rollout) → Task 3 (hash) + Task 5 (annotation, no-op vs change tests) ✓
+- SPI-03 (real readiness) → Task 5 (curl `/Status` exec probe, empirically pinned) + Task 9 ✓
+- SPI-07 (`maxUnavailable:0`) → Task 5 ✓
+- RENDER-02 host-agnostic revision → Task 1/Task 2 ✓
+- Status/Degraded → Task 7 ✓; `--sp-image` → Task 8 ✓
 - Deferred items (memcached/netpol/RBAC/CEL/leader/metrics/OBS-03) → correctly absent ✓
 
-**Placeholder scan:** the only "confirm against real container" items (B3 mounts, C1) are backed by a concrete test method + the proven harness, not hand-waves. Readiness command is exact. No TBD.
+**Placeholder scan:** the only "confirm against real container" items (Task 5 mounts, Task 9) are backed by a concrete test method + the proven harness, not hand-waves. Readiness command is exact. No TBD.
 
-**Type consistency:** `renderConfig` returns `(map[string]string, string, error)` and is consumed by B2 (files) and B3/B5 (hash) consistently; `r.SPImage` set in B6, used in B3; object name `<name>-sp` consistent across B2–B4.
+**Type consistency:** `renderConfig` returns `(map[string]string, string, error)` and is consumed by Task 4 (files) and Task 5/Task 7 (hash) consistently; `r.SPImage` set in Task 8, used in Task 5; object name `<name>-sp` consistent across Task 4–Task 6.
