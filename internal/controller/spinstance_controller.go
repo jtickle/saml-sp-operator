@@ -32,6 +32,12 @@ import (
 type SPInstanceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	// SPImage is the container image reference for the shib-authenticator
+	// image run in the rendered Deployment's "sp" container. Populated by
+	// the CLI flag wired in a later task; envtest and other callers set it
+	// directly.
+	SPImage string
 }
 
 // +kubebuilder:rbac:groups=saml.tickletechnologies.com,resources=spinstances,verbs=get;list;watch;create;update;patch;delete
@@ -41,9 +47,9 @@ type SPInstanceReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 //
-// This is a partial reconcile: it renders the SP config and reconciles the
-// ConfigMap holding it. Later tasks add the Deployment (Task 5), Services
-// (Task 6), and status/Degraded ordering (Task 7).
+// This is a partial reconcile: it renders the SP config, reconciles the
+// ConfigMap holding it, and reconciles the Deployment that runs it. Later
+// tasks add Services (Task 6) and status/Degraded ordering (Task 7).
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.24.1/pkg/reconcile
@@ -59,7 +65,7 @@ func (r *SPInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	files, _, err := renderConfig(sp)
+	files, hash, err := renderConfig(sp)
 	if err != nil {
 		log.Error(err, "unable to render SP config")
 		return ctrl.Result{}, err
@@ -67,6 +73,11 @@ func (r *SPInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	if _, err := r.reconcileConfigMap(ctx, sp, files); err != nil {
 		log.Error(err, "unable to reconcile ConfigMap")
+		return ctrl.Result{}, err
+	}
+
+	if _, err := r.reconcileDeployment(ctx, sp, hash); err != nil {
+		log.Error(err, "unable to reconcile Deployment")
 		return ctrl.Result{}, err
 	}
 

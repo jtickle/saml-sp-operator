@@ -19,13 +19,23 @@ package controller
 import (
 	"context"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	samlv1alpha1 "github.com/jtickle/saml-sp-operator/api/v1alpha1"
 )
+
+// spConfigHashAnnotation is the pod-template annotation that gates the
+// Deployment rollout on the rendered SP config's content hash (SPI-02): a
+// change to shibboleth2.xml, attribute-map.xml, or nginx.conf changes the
+// hash, which changes this annotation, which changes the pod template and
+// so triggers a rollout. An unchanged spec produces an unchanged hash and
+// therefore no rollout on every reconcile.
+const spConfigHashAnnotation = "saml.tickletechnologies.com/config-hash"
 
 // reconcileConfigMap creates or updates the ConfigMap named "<sp.Name>-sp"
 // holding the rendered Shibboleth SP config files as data, owned by sp so it
@@ -47,4 +57,113 @@ func (r *SPInstanceReconciler) reconcileConfigMap(ctx context.Context, sp *samlv
 	}
 
 	return cm, nil
+}
+
+// reconcileDeployment creates or updates the Deployment named "<sp.Name>-sp"
+// running the SP container, owned by sp so it is garbage-collected when the
+// SPInstance is deleted.
+//
+// Three properties are load-bearing here:
+//
+//   - SPI-07 (fail-safe rollout): MaxUnavailable is pinned to 0 so a rolling
+//     update never removes a working replica before its replacement passes
+//     readiness — a bad SP config degrades capacity, never drops it to zero.
+//   - SPI-02 (config-hash rollout gate): the pod template carries the
+//     rendered config's content hash as an annotation. Kubernetes only
+//     rolls a Deployment when its pod template changes, so this is what
+//     turns a config edit into a rollout — and what keeps an unrelated
+//     reconcile (same spec, same hash) from triggering one.
+//   - SPI-03 (real readiness): the readiness probe execs curl against
+//     shibd's own /Shibboleth.sso/Status endpoint inside the pod, so
+//     "ready" means the SP process itself is answering, not that the
+//     container merely started.
+func (r *SPInstanceReconciler) reconcileDeployment(ctx context.Context, sp *samlv1alpha1.SPInstance, configHash string) (*appsv1.Deployment, error) {
+	dep := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      sp.Name + "-sp",
+			Namespace: sp.Namespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, dep, func() error {
+		maxUnavailable := intstr.FromInt(0)
+		labels := map[string]string{"app.kubernetes.io/name": "sp", "app.kubernetes.io/instance": sp.Name}
+
+		dep.Spec.Selector = &metav1.LabelSelector{MatchLabels: labels}
+		dep.Spec.Strategy = appsv1.DeploymentStrategy{
+			Type: appsv1.RollingUpdateDeploymentStrategyType,
+			RollingUpdate: &appsv1.RollingUpdateDeployment{
+				MaxUnavailable: &maxUnavailable,
+			},
+		}
+
+		dep.Spec.Template.ObjectMeta = metav1.ObjectMeta{
+			Labels: labels,
+			Annotations: map[string]string{
+				spConfigHashAnnotation: configHash,
+			},
+		}
+
+		dep.Spec.Template.Spec.Containers = []corev1.Container{
+			{
+				Name:  "sp",
+				Image: r.SPImage,
+				Env: []corev1.EnvVar{
+					{Name: "SHIBSP_SERVER_SCHEME", Value: "https"},
+				},
+				Ports: []corev1.ContainerPort{
+					{ContainerPort: 8080},
+				},
+				ReadinessProbe: &corev1.Probe{
+					ProbeHandler: corev1.ProbeHandler{
+						Exec: &corev1.ExecAction{
+							Command: []string{"curl", "-fsS", "http://localhost:8080/Shibboleth.sso/Status"},
+						},
+					},
+					InitialDelaySeconds: 5,
+					PeriodSeconds:       10,
+					FailureThreshold:    3,
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					{Name: "shib-config", MountPath: "/etc/shibboleth/shibboleth2.xml", SubPath: "shibboleth2.xml"},
+					{Name: "shib-config", MountPath: "/etc/shibboleth/attribute-map.xml", SubPath: "attribute-map.xml"},
+					{Name: "shib-config", MountPath: "/etc/nginx/nginx.conf", SubPath: "nginx.conf"},
+					{Name: "sp-credentials", MountPath: "/run/shibboleth/sp-credentials", ReadOnly: true},
+					{Name: "shib-run", MountPath: "/run/shibboleth"},
+				},
+			},
+		}
+
+		dep.Spec.Template.Spec.Volumes = []corev1.Volume{
+			{
+				Name: "shib-config",
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: sp.Name + "-sp"},
+					},
+				},
+			},
+			{
+				Name: "sp-credentials",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: sp.Spec.Credentials.Name,
+					},
+				},
+			},
+			{
+				Name: "shib-run",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+		}
+
+		return ctrl.SetControllerReference(sp, dep, r.Scheme)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return dep, nil
 }
