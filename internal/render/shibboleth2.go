@@ -53,6 +53,12 @@ const (
 	shibSecurityPolicyPath    = "security-policy.xml"
 	shibProtocolProviderPath  = "protocols.xml"
 	shibAttributeResolverType = "Query"
+
+	// relativeHandlerURL is RELATIVE so one SP spans multiple app hosts: the
+	// SP reconstructs the per-request host itself (verified:
+	// shibmultihost_test.go). SHIBSP_SERVER_SCHEME=https (pod env) forces the
+	// scheme; no host is pinned.
+	relativeHandlerURL = "/Shibboleth.sso"
 )
 
 // hostXML is the RequestMap <Host> element shape (RESEARCH.md Code
@@ -292,19 +298,14 @@ func buildRequestMapHosts(winners []AppBinding) []hostXML {
 }
 
 // buildShibboleth2Tree assembles the full shibboleth2.xml struct tree from
-// cfg and winners. handlerURL is derived via DeriveSelfURL(cfg.ExternalURL)
-// (RENDER-02) — the same shared self-URL value nginx.conf's rendering must
-// consume — so the two files can never disagree about the external port
-// (key_links: a mismatch is the fail-open bug D-11 exists to prevent).
-// cfg.EntityID is rendered verbatim: it is already the complete SAML
-// entityID literal per SPConfig's field contract (types.go), not a value
-// this package reconstructs from ExternalURL.
-func buildShibboleth2Tree(cfg SPConfig, winners []AppBinding) (spConfigXML, error) {
-	selfURL, err := DeriveSelfURL(cfg.ExternalURL)
-	if err != nil {
-		return spConfigXML{}, err
-	}
-
+// cfg and winners. handlerURL is the fixed relativeHandlerURL (RENDER-02):
+// one SP now spans multiple app hosts, so no single external host/port can
+// be baked into handlerURL or nginx.conf's responder block — the SP
+// reconstructs the per-request host itself (verified:
+// shibmultihost_test.go). cfg.EntityID is rendered verbatim: it is already
+// the complete SAML entityID literal per SPConfig's field contract
+// (types.go).
+func buildShibboleth2Tree(cfg SPConfig, winners []AppBinding) spConfigXML {
 	return spConfigXML{
 		Xmlns:     "urn:mace:shibboleth:3.0:native:sp:config",
 		XmlnsConf: "urn:mace:shibboleth:3.0:native:sp:config",
@@ -325,7 +326,7 @@ func buildShibboleth2Tree(cfg SPConfig, winners []AppBinding) (spConfigXML, erro
 				CheckAddress: boolAttr(cfg.Sessions.CheckAddress),
 				HandlerSSL:   boolAttr(cfg.Sessions.HandlerSSL),
 				CookieProps:  cfg.Sessions.CookieProps,
-				HandlerURL:   selfURL.HandlerURL,
+				HandlerURL:   relativeHandlerURL,
 				SSO: ssoXML{
 					EntityID: cfg.IdP.EntityID,
 					Value:    "SAML2",
@@ -381,7 +382,7 @@ func buildShibboleth2Tree(cfg SPConfig, winners []AppBinding) (spConfigXML, erro
 			ReloadChanges: "false",
 			Path:          shibProtocolProviderPath,
 		},
-	}, nil
+	}
 }
 
 // RenderShibboleth2 renders the full shibboleth2.xml document for cfg and
@@ -389,10 +390,7 @@ func buildShibboleth2Tree(cfg SPConfig, winners []AppBinding) (spConfigXML, erro
 // testdata/golden/shibboleth2.xml byte-for-byte for the sample inputs
 // exercised by TestRenderShibboleth2.
 func RenderShibboleth2(cfg SPConfig, winners []AppBinding) ([]byte, error) {
-	tree, err := buildShibboleth2Tree(cfg, winners)
-	if err != nil {
-		return nil, err
-	}
+	tree := buildShibboleth2Tree(cfg, winners)
 
 	body, err := xml.MarshalIndent(tree, "", "    ")
 	if err != nil {

@@ -3,7 +3,6 @@ package render
 import (
 	"bytes"
 	"fmt"
-	"regexp"
 	"text/template"
 )
 
@@ -14,65 +13,34 @@ import (
 // self-closing elements, so the encoding/xml self-closing-tag machinery
 // xmlformat.go exists for has no application here.
 //
-// text/template performs NO auto-escaping (RESEARCH.md Code Examples /
-// project PITFALLS.md #11): every CRD-derived string that could reach this
-// template MUST pass validateHostname's allowlist BEFORE tmpl.Execute runs
-// — reject at render time, never attempt to escape nginx directive syntax
-// after the fact (T-05-01). Today the only CRD-derived string in scope is
-// the external hostname (SelfURL.Name via DeriveSelfURL); it is validated
-// even though this template never interpolates it literally (every host
-// reference in the rendered output is nginx's own $host runtime variable,
-// matching the repo-root fixture — see nginx.conf:60-66's own explanatory
-// comment for why $host, not a literal, is correct here), because a future
-// template revision that DOES interpolate a literal host must not silently
-// lose this guard.
+// One SP now spans multiple app hosts on the standard port (RENDER-02):
+// the responder block passes the PER-REQUEST host ($host, no port pin) and
+// SERVER_PORT is always the standard 443 — there is no longer a single
+// external host/port to derive from SPConfig. Scheme is forced by
+// SHIBSP_SERVER_SCHEME=https (pod env), not by this template. This rendering
+// is exercised by shibmultihost_test.go, which drives RenderNginxConf directly.
 var nginxConfTemplate = template.Must(template.New("nginx.conf").Parse(nginxConfTemplateSrc))
 
-// nginxConfData is the typed data struct nginxConfTemplate executes over.
-// Port is the ONE external-port value this file must agree with
-// shibboleth2.xml's handlerURL on (spike fixes M/N) — both files derive it
-// from the same DeriveSelfURL(cfg.ExternalURL) call (RENDER-02), never two
-// independently-typed literals; a mismatch here is exactly the fail-open
-// bug D-11 exists to prevent.
-type nginxConfData struct {
-	Port int
-}
-
-// validHostnameRE is the allowlist every CRD-derived string reaching
-// nginxConfTemplate must pass before tmpl.Execute (RESEARCH.md Code
-// Examples' exact guard pattern).
-var validHostnameRE = regexp.MustCompile(`^[a-zA-Z0-9.-]+$`)
-
-// validateHostname rejects any hostname containing characters that could
-// break nginx directive syntax if ever interpolated into this template.
-func validateHostname(h string) error {
-	if !validHostnameRE.MatchString(h) {
-		return fmt.Errorf("render: hostname %q contains characters invalid for an nginx directive context", h)
-	}
-	return nil
-}
+// standardHTTPSPort is the only SERVER_PORT this template ever emits: with
+// a relative handlerURL and no pinned external host, every app is served on
+// the standard HTTPS port (RENDER-02).
+const standardHTTPSPort = 443
 
 // RenderNginxConf renders the full nginx.conf document for cfg (RENDER-07).
 // Output equals testdata/golden/nginx.conf byte-for-byte for the sample
-// input exercised by TestRenderNginxConf. The external port is sourced from
-// DeriveSelfURL(cfg.ExternalURL) — the same value shibboleth2.xml embeds in
-// handlerURL — so the two files can never disagree on the external port.
+// input exercised by TestRenderNginxConf.
 func RenderNginxConf(cfg SPConfig) ([]byte, error) {
-	self, err := DeriveSelfURL(cfg.ExternalURL)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := validateHostname(self.Name); err != nil {
-		return nil, err
-	}
-
 	var buf bytes.Buffer
-	if err := nginxConfTemplate.Execute(&buf, nginxConfData{Port: self.Port}); err != nil {
+	if err := nginxConfTemplate.Execute(&buf, nginxConfData{Port: standardHTTPSPort}); err != nil {
 		return nil, fmt.Errorf("render: executing nginx.conf template: %w", err)
 	}
 
 	return buf.Bytes(), nil
+}
+
+// nginxConfData is the typed data struct nginxConfTemplate executes over.
+type nginxConfData struct {
+	Port int
 }
 
 const nginxConfTemplateSrc = `user www-data;
@@ -96,7 +64,7 @@ http {
             fastcgi_param HTTPS       on;
             fastcgi_param SERVER_PORT {{.Port}};
             fastcgi_param SERVER_NAME $host;
-            fastcgi_param HTTP_HOST   $host:{{.Port}};
+            fastcgi_param HTTP_HOST   $host;
             include fastcgi_params;
             fastcgi_pass unix:/run/shibboleth/shibresponder.sock;
         }

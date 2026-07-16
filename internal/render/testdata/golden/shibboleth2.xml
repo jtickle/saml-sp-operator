@@ -6,7 +6,7 @@
         </RequestMap>
     </RequestMapper>
     <ApplicationDefaults entityID="https://app.example.com/shibboleth" REMOTE_USER="email uid">
-        <Sessions lifetime="28800" timeout="3600" relayState="ss:mem" checkAddress="false" handlerSSL="true" cookieProps="https" handlerURL="https://app.example.com:30443/Shibboleth.sso">
+        <Sessions lifetime="28800" timeout="3600" relayState="ss:mem" checkAddress="false" handlerSSL="true" cookieProps="https" handlerURL="/Shibboleth.sso">
             <SSO entityID="https://saml.example.com/entityid">SAML2</SSO>
             <Logout>SAML2 Local</Logout>
             <Handler type="MetadataGenerator" Location="/Metadata" signing="false"/>

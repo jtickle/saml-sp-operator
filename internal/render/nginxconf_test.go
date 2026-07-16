@@ -9,10 +9,10 @@ import (
 
 // TestRenderNginxConf asserts RenderNginxConf's output equals
 // testdata/golden/nginx.conf byte-for-byte for SampleSPConfig (RENDER-07),
-// and that the rendered external port equals
-// DeriveSelfURL(cfg.ExternalURL).Port — the same value shibboleth2.xml
-// embeds in handlerURL (spike fixes M/N; a mismatch is the fail-open bug
-// D-11 exists to prevent).
+// and that the rendered port is always the standard HTTPS port (RENDER-02
+// — one SP now spans multiple app hosts, so no single external port is
+// derived from SPConfig anymore; this is the same value shibboleth2.xml's
+// relative handlerURL implies).
 func TestRenderNginxConf(t *testing.T) {
 	cfg := SampleSPConfig()
 
@@ -30,28 +30,7 @@ func TestRenderNginxConf(t *testing.T) {
 		t.Errorf("RenderNginxConf output does not match golden fixture byte-for-byte\n--- want ---\n%s\n--- got ---\n%s", want, got)
 	}
 
-	self, err := DeriveSelfURL(cfg.ExternalURL)
-	if err != nil {
-		t.Fatalf("DeriveSelfURL: %v", err)
-	}
-	if wantPort := fmt.Sprintf("SERVER_PORT %d;", self.Port); !strings.Contains(string(got), wantPort) {
-		t.Errorf("rendered nginx.conf does not carry the external port %d sourced from DeriveSelfURL", self.Port)
-	}
-}
-
-// TestRenderNginxConfHostileHostname asserts RENDER-10/T-05-01's mitigation:
-// a hostname failing validateHostname's allowlist regex makes
-// RenderNginxConf return an error before tmpl.Execute runs, rather than
-// attempting to interpolate it unescaped into an nginx directive
-// (text/template has no auto-escaping of its own).
-func TestRenderNginxConfHostileHostname(t *testing.T) {
-	cfg := SampleSPConfig()
-	// Underscore is not in validateHostname's [a-zA-Z0-9.-] allowlist, but
-	// net/url still parses it into a usable Hostname() — an unsanitized
-	// nginx directive context would accept far worse (e.g. `;`) unchecked.
-	cfg.ExternalURL = "https://ev_il.example.com:30443"
-
-	if _, err := RenderNginxConf(cfg); err == nil {
-		t.Fatal("expected RenderNginxConf to reject a hostname failing the allowlist regex, got nil error")
+	if wantPort := fmt.Sprintf("SERVER_PORT %d;", standardHTTPSPort); !strings.Contains(string(got), wantPort) {
+		t.Errorf("rendered nginx.conf does not carry the standard HTTPS port %d", standardHTTPSPort)
 	}
 }
