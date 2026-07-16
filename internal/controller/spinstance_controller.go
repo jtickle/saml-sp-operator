@@ -48,8 +48,9 @@ type SPInstanceReconciler struct {
 // move the current state of the cluster closer to the desired state.
 //
 // This is a partial reconcile: it renders the SP config, reconciles the
-// ConfigMap holding it, and reconciles the Deployment that runs it. Later
-// tasks add Services (Task 6) and status/Degraded ordering (Task 7).
+// ConfigMap holding it, reconciles the Deployment that runs it, and
+// reconciles the ClusterIP and headless Services that front it. A later
+// task (Task 7) adds status and Degraded ordering.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.24.1/pkg/reconcile
@@ -78,6 +79,11 @@ func (r *SPInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	if _, err := r.reconcileDeployment(ctx, sp, hash); err != nil {
 		log.Error(err, "unable to reconcile Deployment")
+		return ctrl.Result{}, err
+	}
+
+	if _, _, err := r.reconcileServices(ctx, sp); err != nil {
+		log.Error(err, "unable to reconcile Services")
 		return ctrl.Result{}, err
 	}
 

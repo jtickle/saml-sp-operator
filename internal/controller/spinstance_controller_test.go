@@ -245,5 +245,61 @@ var _ = Describe("SPInstance Controller", func() {
 			Expect(k8sClient.Get(ctx, depName, depAfterChange)).To(Succeed())
 			Expect(depAfterChange.Spec.Template.Annotations["saml.tickletechnologies.com/config-hash"]).NotTo(Equal(firstHash))
 		})
+
+		It("should reconcile a ClusterIP Service and a headless Service, both selecting the SP pod labels", func() {
+			By("Reconciling the created resource")
+			controllerReconciler := &SPInstanceReconciler{
+				Client:  k8sClient,
+				Scheme:  k8sClient.Scheme(),
+				SPImage: spImageTest,
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("checking the Deployment's pod-template labels, which the Services must select")
+			dep := &appsv1.Deployment{}
+			depName := types.NamespacedName{Name: resourceName + "-sp", Namespace: resourceNamespace}
+			Expect(k8sClient.Get(ctx, depName, dep)).To(Succeed())
+			podLabels := dep.Spec.Template.ObjectMeta.Labels
+			Expect(podLabels).To(HaveKeyWithValue("app.kubernetes.io/name", "sp"))
+			Expect(podLabels).To(HaveKeyWithValue("app.kubernetes.io/instance", resourceName))
+
+			Expect(k8sClient.Get(ctx, typeNamespacedName, spinstance)).To(Succeed())
+
+			By("checking the ClusterIP Service")
+			svc := &corev1.Service{}
+			svcName := types.NamespacedName{Name: resourceName + "-sp", Namespace: resourceNamespace}
+			Expect(k8sClient.Get(ctx, svcName, svc)).To(Succeed())
+			Expect(svc.Spec.Selector).To(Equal(podLabels))
+			Expect(svc.Spec.Ports).To(ContainElement(HaveField("Port", int32(8080))))
+			Expect(svc.Spec.ClusterIP).NotTo(Equal("None"))
+
+			Expect(svc.OwnerReferences).To(HaveLen(1))
+			svcOwner := svc.OwnerReferences[0]
+			Expect(svcOwner.Kind).To(Equal("SPInstance"))
+			Expect(svcOwner.Name).To(Equal(resourceName))
+			Expect(svcOwner.UID).To(Equal(spinstance.UID))
+			Expect(svcOwner.Controller).NotTo(BeNil())
+			Expect(*svcOwner.Controller).To(BeTrue())
+
+			By("checking the headless Service")
+			headlessSvc := &corev1.Service{}
+			headlessSvcName := types.NamespacedName{Name: resourceName + "-sp-headless", Namespace: resourceNamespace}
+			Expect(k8sClient.Get(ctx, headlessSvcName, headlessSvc)).To(Succeed())
+			Expect(headlessSvc.Spec.Selector).To(Equal(podLabels))
+			Expect(headlessSvc.Spec.Ports).To(ContainElement(HaveField("Port", int32(8080))))
+			Expect(headlessSvc.Spec.ClusterIP).To(Equal("None"))
+
+			Expect(headlessSvc.OwnerReferences).To(HaveLen(1))
+			headlessOwner := headlessSvc.OwnerReferences[0]
+			Expect(headlessOwner.Kind).To(Equal("SPInstance"))
+			Expect(headlessOwner.Name).To(Equal(resourceName))
+			Expect(headlessOwner.UID).To(Equal(spinstance.UID))
+			Expect(headlessOwner.Controller).NotTo(BeNil())
+			Expect(*headlessOwner.Controller).To(BeTrue())
+		})
 	})
 })

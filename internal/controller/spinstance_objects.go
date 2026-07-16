@@ -37,6 +37,14 @@ import (
 // therefore no rollout on every reconcile.
 const spConfigHashAnnotation = "saml.tickletechnologies.com/config-hash"
 
+// spPodLabels returns a fresh label map identifying the SP pods for sp. The
+// Deployment's pod template and both Services' selectors all call this
+// instead of sharing one map by reference, so none of them can mutate a
+// map another object depends on.
+func spPodLabels(sp *samlv1alpha1.SPInstance) map[string]string {
+	return map[string]string{"app.kubernetes.io/name": "sp", "app.kubernetes.io/instance": sp.Name}
+}
+
 // reconcileConfigMap creates or updates the ConfigMap named "<sp.Name>-sp"
 // holding the rendered Shibboleth SP config files as data, owned by sp so it
 // is garbage-collected when the SPInstance is deleted.
@@ -87,9 +95,8 @@ func (r *SPInstanceReconciler) reconcileDeployment(ctx context.Context, sp *saml
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, dep, func() error {
 		maxUnavailable := intstr.FromInt(0)
-		labels := map[string]string{"app.kubernetes.io/name": "sp", "app.kubernetes.io/instance": sp.Name}
 
-		dep.Spec.Selector = &metav1.LabelSelector{MatchLabels: labels}
+		dep.Spec.Selector = &metav1.LabelSelector{MatchLabels: spPodLabels(sp)}
 		dep.Spec.Strategy = appsv1.DeploymentStrategy{
 			Type: appsv1.RollingUpdateDeploymentStrategyType,
 			RollingUpdate: &appsv1.RollingUpdateDeployment{
@@ -98,7 +105,7 @@ func (r *SPInstanceReconciler) reconcileDeployment(ctx context.Context, sp *saml
 		}
 
 		dep.Spec.Template.ObjectMeta = metav1.ObjectMeta{
-			Labels: labels,
+			Labels: spPodLabels(sp),
 			Annotations: map[string]string{
 				spConfigHashAnnotation: configHash,
 			},
@@ -166,4 +173,56 @@ func (r *SPInstanceReconciler) reconcileDeployment(ctx context.Context, sp *saml
 	}
 
 	return dep, nil
+}
+
+// reconcileServices creates or updates the ClusterIP Service named
+// "<sp.Name>-sp" and the headless Service named "<sp.Name>-sp-headless",
+// both selecting the SP pods and exposing port 8080, owned by sp so they
+// are garbage-collected when the SPInstance is deleted.
+//
+// The ClusterIP Service is the stable address other workloads use to reach
+// the SP. The headless Service (ClusterIP: None) resolves to pod endpoint
+// IPs directly rather than a kube-proxy VIP — later slices' forward-auth
+// dataplanes (Traefik headless target, Gateway API backendRef) target
+// endpoints instead of the ClusterIP, per DESIGN.md's "target endpoints,
+// not the ClusterIP" decision (spike fix O).
+func (r *SPInstanceReconciler) reconcileServices(ctx context.Context, sp *samlv1alpha1.SPInstance) (*corev1.Service, *corev1.Service, error) {
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      sp.Name + "-sp",
+			Namespace: sp.Namespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, svc, func() error {
+		svc.Spec.Selector = spPodLabels(sp)
+		svc.Spec.Ports = []corev1.ServicePort{
+			{Name: "http", Port: 8080, TargetPort: intstr.FromInt(8080)},
+		}
+		return ctrl.SetControllerReference(sp, svc, r.Scheme)
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	headlessSvc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      sp.Name + "-sp-headless",
+			Namespace: sp.Namespace,
+		},
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, headlessSvc, func() error {
+		headlessSvc.Spec.ClusterIP = corev1.ClusterIPNone
+		headlessSvc.Spec.Selector = spPodLabels(sp)
+		headlessSvc.Spec.Ports = []corev1.ServicePort{
+			{Name: "http", Port: 8080, TargetPort: intstr.FromInt(8080)},
+		}
+		return ctrl.SetControllerReference(sp, headlessSvc, r.Scheme)
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return svc, headlessSvc, nil
 }
